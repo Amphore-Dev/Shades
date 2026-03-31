@@ -1,26 +1,20 @@
+import { SHADES_TYPES } from "@/constants/CShades.js";
 import {
   CircleShape,
+  HeartShape,
   ImageShape,
   SpiralShape,
   SquaredShape,
   TextShape,
   TriangleShape,
-} from "../classes/ShadeItem.js";
+} from "../classes/index.js";
 
-export const ShadesTypes: string[] = [
-  "square",
-  "circle",
-  //   "text",
-  "spiral",
-  //   "image",
-  "triangle",
-];
-
-export type TShadeType = (typeof ShadesTypes)[number];
+export type TShadeType = (typeof SHADES_TYPES)[number] | string;
 
 export type TShadeTypeConstructor =
   | typeof SquaredShape
   | typeof CircleShape
+  | typeof HeartShape
   | typeof TextShape
   | typeof SpiralShape
   | typeof ImageShape
@@ -30,13 +24,14 @@ type IShadeTypeConstructors = {
   [key in TShadeType]: TShadeTypeConstructor;
 };
 
-export const ShadesTypesConstructorsList: IShadeTypeConstructors = {
+export const SHADES_TYPES_CONSTRUCTORS_LIST: IShadeTypeConstructors = {
   square: SquaredShape,
   circle: CircleShape,
+  heart: HeartShape,
   text: TextShape,
   spiral: SpiralShape,
   image: ImageShape,
   triangle: TriangleShape,
 };
 
-export type ShadesTypesCodstructors = typeof ShadesTypesConstructorsList;
+export type ShadesTypesCodstructors = typeof SHADES_TYPES_CONSTRUCTORS_LIST;

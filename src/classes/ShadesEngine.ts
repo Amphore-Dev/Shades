@@ -1,33 +1,37 @@
-import { ShadeItem, TextShape } from "./classes/ShadeItem.js";
-import { IPoint } from "./interfaces/index.js";
+import { ShadeItem, TextShape, ImageShape } from "./index.js";
 import {
-  IShadeColor,
-  IShadeConfig,
-  ShadesTypesConstructorsList,
-  TPartialIShadeConfig,
+  TPoint,
+  TShadeColor,
+  TShadeConfig,
+  SHADES_TYPES_CONSTRUCTORS_LIST,
   TShadeTypeConstructor,
-} from "./interfaces/index.js";
-import { HOME_COLORS, MAX_SHADES_NBR } from "./constants/shadesConstants.js";
-import { genConfig, getRandColors } from "./utils/shadeUtils.js";
-import { random } from "./utils/maths.js";
+  TShadeType,
+} from "../types/index.js";
+import { HOME_COLORS, MAX_SHADES_NBR } from "../constants/index.js";
+import { genConfig, getRandColors, random } from "../utils/index.js";
 
-export interface IShadesEngineOptions {
-  shapes?: TPartialIShadeConfig[];
+export type TShadesEngineDebugOptions = {
+  className?: string;
+};
+
+export type TShadesEngineOptions = {
+  shapes?: TShadeType[]; // Allows specifying a list of shape types to use for each generation (e.g., ["circle", "square"])
+  customShapes?: Record<string, TShadeTypeConstructor>; // Allows providing custom shape classes (e.g., { "myShape": MyCustomShape })
   randomized?: boolean;
-  debug?: boolean;
-  fadeDuration?: number; // Durée du fade en millisecondes (défaut: 500ms)
-}
+  debug?: boolean | TShadesEngineDebugOptions;
+  fadeDuration?: number; // Fade duration in milliseconds (default: 500ms)
+};
 
 export class ShadesEngine {
   private canvas: HTMLCanvasElement;
   private context: CanvasRenderingContext2D;
-  private options: IShadesEngineOptions;
+  private options: TShadesEngineOptions;
 
   // Internal state (previously React useRef equivalents)
   private items: ShadeItem[] = [];
-  private config: IShadeConfig;
-  private offset: IPoint = { x: 0, y: 0 };
-  private targetOffset: IPoint = { x: 0, y: 0 };
+  private config: TShadeConfig;
+  private offset: TPoint = { x: 0, y: 0 };
+  private targetOffset: TPoint = { x: 0, y: 0 };
   private genCount = 0;
   private fade = {
     isFading: true,
@@ -44,13 +48,17 @@ export class ShadesEngine {
   private elapsedTime = 1;
   private framesCount = { count: 0, fps: 0 };
 
-  // Événements
+  // Event handlers
   private boundHandleClick: () => void;
   private boundHandleMouseMove: (e: MouseEvent) => void;
   private boundHandleWheel: (e: WheelEvent) => void;
   private boundHandleResize: () => void;
 
-  constructor(canvas: HTMLCanvasElement, options: IShadesEngineOptions = {}) {
+  // Debug
+  private debug: boolean | TShadesEngineDebugOptions = false;
+  private debugContainer: HTMLPreElement | null = null;
+
+  constructor(canvas: HTMLCanvasElement, options: TShadesEngineOptions = {}) {
     this.canvas = canvas;
     this.options = options;
 
@@ -60,9 +68,9 @@ export class ShadesEngine {
     }
     this.context = context;
 
-    this.config = genConfig();
+    this.config = genConfig(this.options);
 
-    // Initialiser le startTime et startOpacity pour le premier fade
+    // Initialize startTime and startOpacity for the first fade
     this.fade.startTime = performance.now();
     this.fade.startOpacity = 0;
 
@@ -79,29 +87,6 @@ export class ShadesEngine {
   private setupCanvas(): void {
     this.canvas.width = this.canvas.clientWidth;
     this.canvas.height = this.canvas.clientHeight;
-  }
-
-  private initializeDebug(): void {
-    if (this.options.debug) {
-      const debugElement = document.createElement("pre");
-      debugElement.className = "shades-debug";
-      debugElement.style.cssText = `
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        z-index: 10;
-        color: white;
-        text-align: left;
-        font-family: monospace;
-        font-size: 12px;
-        background: rgba(0,0,0,0.5);
-        padding: 10px;
-        pointer-events: none;
-      `;
-
-      // Insert before canvas in DOM
-      this.canvas.parentNode?.insertBefore(debugElement, this.canvas);
-    }
   }
 
   public generate(): void {
@@ -147,22 +132,17 @@ export class ShadesEngine {
     );
   }
 
-  private getConfig(): IShadeConfig {
-    let config = this.config;
+  private getConfig(): TShadeConfig {
+    const config = this.config;
 
-    if (this.options.shapes?.length) {
-      config = {
-        ...config,
-        ...(this.options.shapes[this.genCount - 1] ?? {}),
-      };
-    }
+    // maybe used later for external config provision, but for now we just return the current config
 
     return { ...config };
   }
 
   private genItems(
     constructor?: TShadeTypeConstructor,
-    forceColor?: IShadeColor | IShadeColor[]
+    forceColor?: TShadeColor | TShadeColor[]
   ): void {
     const config = this.getConfig();
     const {
@@ -179,7 +159,7 @@ export class ShadesEngine {
     } = config;
 
     const items: ShadeItem[] = [];
-    // Pour la régénération (genCount > 1), ignorer configColors et générer de nouvelles couleurs
+    // For genCount > 1), ignore configColors and generate new colors
     const colors =
       this.genCount > 1
         ? getRandColors(type)
@@ -195,7 +175,10 @@ export class ShadesEngine {
     const mainColor =
       configMainColor ?? colors[random(0, colors.length - 1, true)];
 
-    const ShadeConstructor = constructor ?? ShadesTypesConstructorsList[type];
+    const ShadeConstructor =
+      constructor ??
+      this.options.customShapes?.[type] ??
+      SHADES_TYPES_CONSTRUCTORS_LIST[type];
 
     for (let x = 0; x < nbrItemsX; x++) {
       for (let y = 0; y < nbrItemsY; y++) {
@@ -207,8 +190,12 @@ export class ShadesEngine {
             x * width + x * spacing,
             y * height + y * spacing,
             color ?? itemColor,
-            fillFilter?.(mainColor, color ?? itemColor),
-            rotationFilter?.(mainColor, color ?? itemColor)
+            {
+              filled: fillFilter?.(mainColor, color ?? itemColor),
+              rotation: rotationFilter?.(mainColor, color ?? itemColor),
+              lineCap: config.lineCap,
+              ...(constructor === ImageShape ? { imageSource: undefined } : {}),
+            }
           )
         );
       }
@@ -224,9 +211,6 @@ export class ShadesEngine {
       totalWidth: nbrItemsX * width + (nbrItemsX - 1) * spacing,
       totalHeight: nbrItemsY * height + (nbrItemsY - 1) * spacing,
     };
-
-    // Save to session storage (comme dans le code original)
-    sessionStorage.setItem("shadesConfig", JSON.stringify(this.config));
 
     this.items = items;
     this.genCount++;
@@ -283,20 +267,20 @@ export class ShadesEngine {
     // Fade animation
     if (this.fade.isFading) {
       const fadeDuration =
-        (this.options.fadeDuration ?? 1000) / (this.genCount ? 2 : 1); // Réduire la durée du fade pour les régénérations ultérieures
+        (this.options.fadeDuration ?? 1000) / (this.genCount ? 2 : 1); // Speed up fade for subsequent generations (fade duration = fadeIn + fadeOut)
       const currentTime = performance.now();
       const { targetOpacity, startTime, onDone } = this.fade;
 
-      // Calculer la progression basée sur le temps réel écoulé
+      // Calculate progress based on elapsed real time
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / fadeDuration, 1);
 
-      // Interpoler entre startOpacity et targetOpacity
+      // Interpolate between startOpacity and targetOpacity
       const { startOpacity } = this.fade;
       this.fade.opacity =
         startOpacity + (targetOpacity - startOpacity) * progress;
 
-      // Fade terminé
+      // Fade completed
       if (progress >= 1) {
         this.fade.opacity = targetOpacity;
         this.fade.isFading = false;
@@ -312,8 +296,6 @@ export class ShadesEngine {
 
     const stop = performance.now();
     this.elapsedTime = stop - start;
-
-    // Update frame counter
     this.framesCount.count++;
 
     if (this.options.debug) {
@@ -323,31 +305,7 @@ export class ShadesEngine {
     this.animationFrameId = requestAnimationFrame(() => this.animate());
   }
 
-  private startFPSCounter(): void {
-    setInterval(() => {
-      this.framesCount = {
-        count: 0,
-        fps: this.framesCount.count,
-      };
-    }, 1000);
-  }
-
-  private updateDebug(): void {
-    const debugElement = document.querySelector(".shades-debug") as HTMLElement;
-    if (debugElement) {
-      debugElement.innerHTML = `
-Width: ${this.canvas.width}
-Height: ${this.canvas.height}
-IsPlaying: ${this.isPlaying}
-Elapsed Time: ${this.elapsedTime.toFixed(2)}ms
-FPS: ${this.framesCount.fps}
-Items: ${this.items.length}
-Generation: ${this.genCount}
-      `.trim();
-    }
-  }
-
-  private getCenter(): IPoint {
+  private getCenter(): TPoint {
     return {
       x: this.canvas.clientWidth / 2,
       y: this.canvas.clientHeight / 2,
@@ -387,7 +345,7 @@ Generation: ${this.genCount}
   private handleClick(): void {
     if (this.fade.isFading && this.fade.targetOpacity === 0) return;
 
-    // Conserver l'opacité actuelle comme point de départ du fade out
+    // Keep current opacity as the starting point for fade out
     const currentOpacity = this.fade.opacity;
 
     this.fade = {
@@ -405,7 +363,7 @@ Generation: ${this.genCount}
           startTime: performance.now(),
           onDone: () => {},
         };
-        this.config = genConfig();
+        this.config = genConfig(this.options);
         this.genItems();
       },
     };
@@ -437,18 +395,16 @@ Generation: ${this.genCount}
     window.removeEventListener("resize", this.boundHandleResize);
   }
 
+  // Public API methods for external interaction
   public destroy(): void {
     this.pause();
     this.detachEventListeners();
 
     // Clean up debug element
-    const debugElement = document.querySelector(".shades-debug");
-    if (debugElement) {
-      debugElement.remove();
+    if (this.debugContainer) {
+      this.debugContainer.remove();
+      this.debugContainer = null;
     }
-
-    // Clear session storage
-    sessionStorage.removeItem("shadesConfig");
 
     // Reset state
     this.items = [];
@@ -457,12 +413,11 @@ Generation: ${this.genCount}
     this.targetOffset = { x: 0, y: 0 };
   }
 
-  // API publique pour contrôler l'engine
   public regenerate(): void {
     this.handleClick();
   }
 
-  public getShadesConfig(): IShadeConfig {
+  public getShadesConfig(): TShadeConfig {
     return { ...this.config };
   }
 
@@ -474,9 +429,73 @@ Generation: ${this.genCount}
     return this.isPlaying;
   }
 
-  public setDebug(enabled: boolean): void {
-    this.options.debug = enabled;
-    if (enabled) {
+  public zoom(scale: number): void {
+    this.zoomShades(scale);
+  }
+
+  // Debug methods
+
+  private initializeDebug(): void {
+    if (this.options.debug) {
+      const debugElement = document.createElement("pre");
+      debugElement.className =
+        typeof this.options.debug === "object" && this.options.debug.className
+          ? this.options.debug.className
+          : "shades-debug";
+      debugElement.style.cssText = `
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        z-index: 10;
+        color: white;
+        text-align: left;
+        font-family: monospace;
+        font-size: 12px;
+        background: rgba(0,0,0,0.5);
+        padding: 10px;
+        pointer-events: none;
+      `;
+
+      // Insert before canvas in DOM
+      this.canvas.parentNode?.insertBefore(debugElement, this.canvas);
+      this.debugContainer = debugElement;
+    }
+  }
+
+  private startFPSCounter(): void {
+    setInterval(() => {
+      this.framesCount = {
+        count: 0,
+        fps: this.framesCount.count,
+      };
+    }, 1000);
+  }
+
+  private updateDebug(): void {
+    const debugElement = this.debugContainer;
+    if (debugElement) {
+      debugElement.innerHTML = `
+Width: ${this.canvas.width}
+Height: ${this.canvas.height}
+IsPlaying: ${this.isPlaying}
+Elapsed Time: ${this.elapsedTime.toFixed(2)}ms
+FPS: ${this.framesCount.fps}
+Items: ${this.items.length}
+Generation: ${this.genCount}
+      `.trim();
+    }
+  }
+
+  public getDebugInfo(): { genCount: number; config: TShadeConfig } {
+    return {
+      genCount: this.genCount,
+      config: { ...this.config },
+    };
+  }
+
+  public setDebug(value: boolean | TShadesEngineDebugOptions): void {
+    this.options.debug = value;
+    if (value) {
       this.initializeDebug();
     } else {
       const debugElement = document.querySelector(".shades-debug");
@@ -484,16 +503,5 @@ Generation: ${this.genCount}
         debugElement.remove();
       }
     }
-  }
-
-  public zoom(scale: number): void {
-    this.zoomShades(scale);
-  }
-
-  public getDebugInfo(): { genCount: number; config: IShadeConfig } {
-    return {
-      genCount: this.genCount,
-      config: { ...this.config },
-    };
   }
 }

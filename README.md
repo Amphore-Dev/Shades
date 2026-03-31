@@ -1,6 +1,6 @@
 # 🎨 Shades
 
-A framework-agnostic TypeScript library for creating animated shape visualizations on canvas.
+Library for creating animated shape visualizations on canvas.
 
 ## Features
 
@@ -15,7 +15,9 @@ A framework-agnostic TypeScript library for creating animated shape visualizatio
 ## Installation
 
 ```bash
-npm install @your-org/shades
+npm install @amphore-dev/shades
+# or
+yarn add @amphore-dev/shades
 ```
 
 ## Quick Start
@@ -23,7 +25,7 @@ npm install @your-org/shades
 ### Vanilla JavaScript/TypeScript
 
 ```typescript
-import { ShadesEngine } from "@your-org/shades";
+import { ShadesEngine } from "@amphore-dev/shades";
 
 const canvas = document.getElementById("myCanvas") as HTMLCanvasElement;
 
@@ -40,7 +42,7 @@ shades.start(); // Start animation
 
 ```tsx
 import { useEffect, useRef } from "react";
-import { ShadesEngine } from "@your-org/shades";
+import { ShadesEngine } from "@amphore-dev/shades";
 
 function ShadesComponent() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -74,7 +76,7 @@ function ShadesComponent() {
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from "vue";
-import { ShadesEngine } from "@your-org/shades";
+import { ShadesEngine } from "@amphore-dev/shades";
 
 const canvasRef = ref<HTMLCanvasElement>();
 let shades: ShadesEngine;
@@ -101,16 +103,18 @@ onUnmounted(() => {
 ### Constructor
 
 ```typescript
-new ShadesEngine(canvas: HTMLCanvasElement, options?: IShadesEngineOptions)
+new ShadesEngine(canvas: HTMLCanvasElement, options?: TShadesEngineOptions)
 ```
 
 #### Options
 
 ```typescript
-interface IShadesEngineOptions {
-  shapes?: TPartialIShadeConfig[]; // Custom shape configurations
+interface TShadesEngineOptions {
+  shapes?: TShadeType[]; // Shape types to use for generation (ex: ["circle", "star"])
+  customShapes?: Record<string, TShadeTypeConstructor>; // Custom shape classes (ex: { "star": StarShape })
   randomized?: boolean; // Enable randomized generation
   debug?: boolean; // Show debug information
+  fadeDuration?: number; // Fade duration in milliseconds (default: 500ms)
 }
 ```
 
@@ -136,8 +140,113 @@ interface IShadesEngineOptions {
 
 ## Custom Shapes
 
+Create your own custom shapes by extending the `ShadeItem` class:
+
+### Creating a Custom Shape
+
 ```typescript
-import { ShadesEngine } from "@your-org/shades";
+import {
+  ShadeItem,
+  TShadeColor,
+  TShadeConfig,
+  TShapeOptions,
+  TPoint,
+} from "@amphore-dev/shades";
+
+export class StarShape extends ShadeItem {
+  constructor(
+    x: number,
+    y: number,
+    color: TShadeColor,
+    options: TShapeOptions = {}
+  ) {
+    super(x, y, color, { filled: true, rotation: true, ...options });
+    this.type = "star";
+  }
+
+  draw = (
+    ctx: CanvasRenderingContext2D,
+    config: TShadeConfig,
+    offset: TPoint
+  ) => {
+    const { gradRatio, nbrShades, totalWidth, totalHeight, center, width } =
+      config;
+
+    for (let i = 0; i < nbrShades; i++) {
+      this.setColors(ctx, gradRatio, i);
+      ctx.beginPath();
+
+      const x =
+        center.x +
+        (this.position.x - totalWidth / 2 + width / 2) +
+        offset.x * (1 - (gradRatio * i) / 100);
+      const y =
+        center.y +
+        (this.position.y - totalHeight / 2 + width / 2) +
+        offset.y * (1 - (gradRatio * i) / 100);
+
+      this.drawStar(ctx, x, y, width / 2, width / 4, 5);
+      this.drawPath(ctx);
+      ctx.closePath();
+
+      if (this.rotation) {
+        this.angle += ((0.5 / nbrShades) * Math.PI) / 180;
+      }
+    }
+  };
+
+  private drawStar(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    outer: number,
+    inner: number,
+    points: number
+  ) {
+    const step = Math.PI / points;
+    let rot = (Math.PI / 2) * 3 + this.angle;
+
+    ctx.moveTo(x, y - outer);
+    for (let i = 0; i < points; i++) {
+      ctx.lineTo(x + Math.cos(rot) * outer, y + Math.sin(rot) * outer);
+      rot += step;
+      ctx.lineTo(x + Math.cos(rot) * inner, y + Math.sin(rot) * inner);
+      rot += step;
+    }
+    ctx.lineTo(x, y - outer);
+  }
+}
+```
+
+### Using Custom Shapes
+
+```typescript
+import { ShadesEngine } from "@amphore-dev/shades";
+import { StarShape } from "./StarShape";
+
+const engine = new ShadesEngine(canvas, {
+  shapes: ["star", "circle", "heart"], // Mix built-in and custom
+  customShapes: {
+    star: StarShape, // Register your custom shape
+  },
+  fadeDuration: 800,
+});
+
+engine.generate();
+engine.start();
+```
+
+### Benefits
+
+- ✅ **Full extensibility** - Create any imaginable shape
+- ✅ **Seamless integration** - Mix with built-in shapes
+- ✅ **Type safety** - Complete TypeScript support
+- ✅ **Performance** - No overhead, direct compilation
+
+## Advanced Usage
+
+```typescript
+import { ShadesEngine } from "@amphore-dev/shades";
 
 const shades = new ShadesEngine(canvas, {
   shapes: [
@@ -160,12 +269,12 @@ const shades = new ShadesEngine(canvas, {
 ### Custom Colors
 
 ```typescript
-import { ShadesEngine, getRandColors } from "@your-org/shades";
+import { ShadesEngine, getRandColors } from "@amphore-dev/shades";
 
 const customColors = [
-  { r: 255, g: 0, b: 0 }, // Red
-  { r: 0, g: 255, b: 0 }, // Green
-  { r: 0, g: 0, b: 255 }, // Blue
+  { r: 255, g: 0, b: 0 },
+  { r: 0, g: 255, b: 0 },
+  { r: 0, g: 0, b: 255 },
 ];
 
 const shades = new ShadesEngine(canvas, {
@@ -184,12 +293,12 @@ The engine automatically handles:
 
 ## Examples
 
-Check out `example-vanilla.html` for a complete example with controls.
+Check out `example/example-vanilla.html` for a complete example with controls.
 
 ## Building From Source
 
 ```bash
-git clone <your-repo>
+git clone https://github.com/Amphore-Dev/shades.git
 cd shades
 npm install
 npm run build

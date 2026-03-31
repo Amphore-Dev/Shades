@@ -1,30 +1,40 @@
-import { IShadeColor, IShadeConfig } from "../../interfaces/index.js";
-import { IPoint } from "../../interfaces/Points.js";
+import { random } from "../../utils/UMaths.js";
+import { TShadeColor, TShadeConfig, TShapeOptions } from "../../types/index.js";
+import { TPoint } from "../../types/TPoints.js";
 import { ShadeItem } from "./BaseShape.js";
 
-// const fontList = ["NEON", "Remained"];
-const curFont = "Remained";
+const fontList = ["Remained"];
+const curFont = fontList[random(0, fontList.length - 1, true)]; // Default to monospace for better compatibility
 
 /**
  * Text shape implementation for displaying text
  */
 export class TextShape extends ShadeItem {
-  constructor(x: number, y: number, color: IShadeColor) {
-    super(x, y, color);
+  text: string;
+  font: string;
+
+  constructor(
+    x: number,
+    y: number,
+    color: TShadeColor,
+    options: TShapeOptions & { text?: string; font?: string } = {}
+  ) {
+    super(x, y, color, { ...options, filled: true });
     this.type = "text";
-    this.filled = true;
+    this.text = options.text ?? "SHADES";
+    this.font = options.font ?? curFont;
   }
 
   draw = (
     ctx: CanvasRenderingContext2D,
-    config: IShadeConfig,
-    offset: IPoint
+    config: TShadeConfig,
+    offset: TPoint
   ) => {
     const { gradRatio, nbrShades, totalWidth, totalHeight, center, width } =
       config;
 
-    const text = "SHADES"; // Default text instead of i18n
-    ctx.font = `${width}px ${curFont}`;
+    const text = this.text; // Use the text from the options
+    ctx.font = `${width}px ${this.font}`;
     ctx.textBaseline = "middle";
     ctx.textAlign = "center";
 

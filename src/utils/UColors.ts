@@ -1,9 +1,9 @@
-import { IShadeColor } from "../interfaces/index.js";
+import { TShadeColor } from "../types/index.js";
 
 /**
  * Convert RGB values to hex color string
  */
-export function rgbToHex(color: IShadeColor): string {
+export function rgbToHex(color: TShadeColor): string {
   if (!color) {
     return "#000000"; // Default to black if no color is provided
   }
@@ -26,7 +26,7 @@ export function intToHex(n: number): string {
 /**
  * Convert hex string to RGB values
  */
-export function hexToRgb(hex: string): IShadeColor | null {
+export function hexToRgb(hex: string): TShadeColor | null {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   return result
     ? {
@@ -40,7 +40,7 @@ export function hexToRgb(hex: string): IShadeColor | null {
 /**
  * Create random RGB color
  */
-export function randomColor(): IShadeColor {
+export function randomColor(): TShadeColor {
   return {
     r: Math.floor(Math.random() * 256),
     g: Math.floor(Math.random() * 256),

@@ -1,40 +1,56 @@
 import {
-  IShadeColor,
-  IShadeConfig,
+  TShadeColor,
+  TShadeConfig,
   TShadeType,
-} from "../../interfaces/index.js";
-import { IPoint } from "../../interfaces/Points.js";
+  TShapeOptions,
+} from "../../types/index.js";
+import { TPoint } from "../../types/TPoints.js";
 
 /**
  * Base class for all shape types
  */
 export class ShadeItem {
   id: string;
-  position: IPoint;
+  position: TPoint;
   angle: number = 0;
   rotation: boolean = false;
-  color: IShadeColor;
+  color: TShadeColor;
   type: TShadeType = "circle";
   filled: boolean = false;
+  lineCap: "butt" | "round" | "square" = "butt";
 
-  constructor(x: number, y: number, color: IShadeColor) {
+  constructor(
+    x: number,
+    y: number,
+    color: TShadeColor,
+    options: TShapeOptions = {}
+  ) {
     // random id
-    this.id = Math.random().toString(36).substr(2, 9);
+    this.id = Math.random().toString(36).slice(2, 10);
     this.position = { x, y };
     this.color = color;
+
+    // Apply options with defaults
+    this.filled = options.filled ?? false;
+    this.rotation = options.rotation ?? false;
+    this.lineCap = options.lineCap ?? "butt";
   }
 
   draw = (
     ctx: CanvasRenderingContext2D,
-    config: IShadeConfig,
-    offset: IPoint
+    config: TShadeConfig,
+    offset: TPoint
   ) => {
     console.warn("draw method not implemented");
   };
 
   drawPath = (ctx: CanvasRenderingContext2D) => {
+    const savedLineCap = ctx.lineCap;
+    ctx.lineCap = this.lineCap;
+
     if (this.filled) ctx.fill();
     else ctx.stroke();
+    ctx.lineCap = savedLineCap;
   };
 
   setColors = (ctx: CanvasRenderingContext2D, gradRatio: number, i: number) => {

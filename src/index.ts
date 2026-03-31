@@ -1,35 +1,12 @@
 // Export main engine class
-export { ShadesEngine } from "./ShadesEngine.js";
-export type { IShadesEngineOptions } from "./ShadesEngine.js";
+export * from "./classes/index.js";
 
-// Export core types and interfaces
-export type {
-  IShadeColor,
-  IShadeConfig,
-  TPartialIShadeConfig,
-  TShadeType,
-  TShadeTypeConstructor,
-  IShadeFilter,
-} from "./interfaces/index.js";
-
-export type { IPoint } from "./interfaces/index.js";
+// Export core types
+export type * from "./types/index.js";
 
 // Export utility functions for advanced users
-export { genConfig, getRandColors, getRandColor } from "./utils/shadeUtils.js";
+export { genConfig, getRandColors, getRandColor } from "./utils/UShadeUtils.js";
 
-// Export shape classes for custom implementations
-export { ShadeItem, TextShape } from "./classes/ShadeItem.js";
-// Export individual shape classes for more granular imports
-export {
-  CircleShape,
-  ImageShape,
-  SpiralShape,
-  SquaredShape,
-  TriangleShape,
-} from "./classes/shapes/index.js";
+// Export individual shape classes
 // Export constants
-export {
-  HOME_COLORS as HomeColors,
-  MAX_SHADES_NBR as MaxShadesNbr,
-} from "./constants/shadesConstants.js";
-export { ShadesTypes } from "./interfaces/shades.js";
+export { HOME_COLORS, MAX_SHADES_NBR } from "./constants/index.js";

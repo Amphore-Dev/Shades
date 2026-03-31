@@ -1,5 +1,5 @@
-import { IShadeColor, IShadeConfig } from "../../interfaces/index.js";
-import { IPoint } from "../../interfaces/Points.js";
+import { TShadeColor, TShadeConfig, TShapeOptions } from "../../types/index.js";
+import { TPoint } from "../../types/TPoints.js";
 import { ShadeItem } from "./BaseShape.js";
 
 /**
@@ -9,18 +9,17 @@ export class SquaredShape extends ShadeItem {
   constructor(
     x: number,
     y: number,
-    color: IShadeColor,
-    filled: boolean = false
+    color: TShadeColor,
+    options: TShapeOptions = {}
   ) {
-    super(x, y, color);
+    super(x, y, color, { filled: false, ...options });
     this.type = "square";
-    this.filled = filled;
   }
 
   draw = (
     ctx: CanvasRenderingContext2D,
-    config: IShadeConfig,
-    offset: IPoint
+    config: TShadeConfig,
+    offset: TPoint
   ) => {
     const {
       gradRatio,

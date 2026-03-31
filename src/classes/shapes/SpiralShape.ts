@@ -1,5 +1,5 @@
-import { IShadeColor, IShadeConfig } from "../../interfaces/index.js";
-import { IPoint } from "../../interfaces/Points.js";
+import { TShadeColor, TShadeConfig, TShapeOptions } from "../../types/index.js";
+import { TPoint } from "../../types/TPoints.js";
 import { ShadeItem } from "./BaseShape.js";
 
 /**
@@ -9,21 +9,18 @@ export class SpiralShape extends ShadeItem {
   constructor(
     x: number,
     y: number,
-    color: IShadeColor,
-    filled: boolean = false,
-    rotation: boolean = true
+    color: TShadeColor,
+    options: TShapeOptions = {}
   ) {
-    super(x, y, color);
+    super(x, y, color, { filled: false, rotation: true, ...options });
     this.type = "spiral";
     this.angle = 0;
-    this.rotation = rotation;
-    this.filled = filled;
   }
 
   draw = (
     ctx: CanvasRenderingContext2D,
-    config: IShadeConfig,
-    offset: IPoint
+    config: TShadeConfig,
+    offset: TPoint
   ) => {
     const { gradRatio, nbrShades, totalWidth, totalHeight, center, width } =
       config;

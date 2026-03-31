@@ -1,11 +1,6 @@
-import { IShadeColor } from "../interfaces/index.js";
+import { TShadeColor } from "@/types/TShadeItem.js";
 
-import { rgbToHex } from "../utils/colors.js";
-import { random } from "../utils/maths.js";
-
-export const MAX_SHADES_NBR = 30;
-
-export const HOME_COLORS: IShadeColor[] = [
+export const HOME_COLORS: TShadeColor[] = [
   { r: 80, g: 178, b: 192 },
   { r: 241, g: 162, b: 8 },
   { r: 214, g: 40, b: 57 },
@@ -16,7 +11,7 @@ export const HOME_COLORS: IShadeColor[] = [
   { r: 209, g: 52, b: 91 },
 ];
 
-export const LIGHT_COLORS: IShadeColor[] = [
+export const LIGHT_COLORS: TShadeColor[] = [
   { r: 255, g: 255, b: 255 },
   { r: 0, g: 255, b: 0 },
   { r: 255, g: 0, b: 255 },
@@ -35,7 +30,7 @@ export const LIGHT_COLORS: IShadeColor[] = [
   { r: 155, g: 197, b: 91 },
 ];
 
-export const DARK_COLORS: IShadeColor[] = [
+export const DARK_COLORS: TShadeColor[] = [
   { r: 0, g: 0, b: 0 },
   { r: 0, g: 0, b: 0 },
   { r: 0, g: 0, b: 0 },
@@ -43,20 +38,3 @@ export const DARK_COLORS: IShadeColor[] = [
 ];
 
 export const COLORS = [...HOME_COLORS, ...LIGHT_COLORS, ...DARK_COLORS];
-
-// filters
-export const SAME_COLOR_FILTER = (
-  mainColor: IShadeColor,
-  itemColor: IShadeColor
-) => rgbToHex(itemColor) === rgbToHex(mainColor);
-
-export const NO_FILTER = () => true;
-export const RANDOM_FILTER = () => false;
-export const RANDOM_50_FILTER = () => random(0, 1, true) === 1;
-
-export const RANDOM_FILTERS = [
-  SAME_COLOR_FILTER,
-  NO_FILTER,
-  RANDOM_FILTER,
-  RANDOM_50_FILTER,
-];

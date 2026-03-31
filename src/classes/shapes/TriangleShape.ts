@@ -1,6 +1,6 @@
-import { IShadeColor, IShadeConfig } from "../../interfaces/index.js";
-import { IPoint } from "../../interfaces/Points.js";
-import { degToRad } from "../../utils/maths.js";
+import { TShadeColor, TShadeConfig, TShapeOptions } from "../../types/index.js";
+import { TPoint } from "../../types/TPoints.js";
+import { degToRad } from "../../utils/UMaths.js";
 import { ShadeItem } from "./BaseShape.js";
 
 /**
@@ -10,21 +10,18 @@ export class TriangleShape extends ShadeItem {
   constructor(
     x: number,
     y: number,
-    color: IShadeColor,
-    filled: boolean = true,
-    rotation: boolean = true
+    color: TShadeColor,
+    options: TShapeOptions = {}
   ) {
-    super(x, y, color);
-    this.rotation = rotation;
+    super(x, y, color, { filled: true, rotation: true, ...options });
     this.type = "triangle";
-    this.filled = filled;
     this.angle = degToRad(90);
   }
 
   draw = (
     ctx: CanvasRenderingContext2D,
-    config: IShadeConfig,
-    offset: IPoint
+    config: TShadeConfig,
+    offset: TPoint
   ) => {
     const { gradRatio, nbrShades, totalWidth, totalHeight, center, width } =
       config;
@@ -67,19 +64,8 @@ export class TriangleShape extends ShadeItem {
           offset.y * (1 - (gradRatio * i) / 100)
       );
 
-      ctx.lineTo(
-        center.x +
-          Math.cos(this.angle) * width +
-          (this.position.x - totalWidth / 2 + width / 2) +
-          offset.x * (1 - (gradRatio * i) / 100),
-        center.y +
-          Math.sin(this.angle) * width +
-          (this.position.y - totalHeight / 2 + width / 2) +
-          offset.y * (1 - (gradRatio * i) / 100)
-      );
-
-      this.drawPath(ctx);
       ctx.closePath();
+      this.drawPath(ctx);
 
       if (this.rotation) {
         this.angle += ((0.3 / nbrShades) * Math.PI) / 180;

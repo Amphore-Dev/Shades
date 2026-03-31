@@ -1,6 +1,6 @@
-import { IShadeColor, IShadeConfig } from "../../interfaces/index.js";
-import { IPoint } from "../../interfaces/Points.js";
-import { intToHex, rgbToHex } from "../../utils/colors.js";
+import { TShadeColor, TShadeConfig, TShapeOptions } from "../../types/index.js";
+import { TPoint } from "../../types/TPoints.js";
+import { intToHex, rgbToHex } from "../../utils/UColors.js";
 import { ShadeItem } from "./BaseShape.js";
 
 /**
@@ -16,18 +16,16 @@ export class ImageShape extends ShadeItem {
   constructor(
     x: number,
     y: number,
-    color: IShadeColor,
-    filled?: boolean,
-    rotation?: boolean,
-    imageSource?: string | HTMLImageElement | HTMLElement
+    color: TShadeColor,
+    options: TShapeOptions & {
+      imageSource?: string | HTMLImageElement | HTMLElement;
+    } = {}
   ) {
-    super(x, y, color);
+    super(x, y, color, { filled: true, rotation: false, ...options });
     this.type = "image";
-    this.filled = filled ?? true;
-    this.rotation = rotation ?? false;
 
     this.hexColor = rgbToHex(this.color);
-    this.loadImage(imageSource);
+    this.loadImage(options.imageSource);
   }
 
   private loadImage(
@@ -100,8 +98,8 @@ export class ImageShape extends ShadeItem {
 
   draw = (
     ctx: CanvasRenderingContext2D,
-    config: IShadeConfig,
-    offset: IPoint
+    config: TShadeConfig,
+    offset: TPoint
   ) => {
     const { gradRatio, nbrShades, center } = config;
 

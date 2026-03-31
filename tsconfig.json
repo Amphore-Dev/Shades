@@ -15,10 +15,7 @@
     "declarationMap": true,
     "sourceMap": true,
     "paths": {
-      "@interfaces/*": ["./src/interfaces/*"],
-      "@utils/*": ["./src/utils/*"],
-      "@constants/*": ["./src/constants/*"],
-      "@classes/*": ["./src/classes/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src"],
