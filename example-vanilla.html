@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shades Engine Example</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        background: #000;
+        overflow: hidden;
+        font-family: Arial, sans-serif;
+      }
+
+      #canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+
+      .controls {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        z-index: 10;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .controls button {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: white;
+        padding: 8px 12px;
+        cursor: pointer;
+        border-radius: 4px;
+        font-size: 12px;
+        transition: background 0.2s;
+      }
+
+      .controls button:hover {
+        background: rgba(255, 255, 255, 0.2);
+      }
+
+      .info {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        color: white;
+        font-size: 12px;
+        opacity: 0.7;
+        text-align: right;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas"></canvas>
+
+    <div class="controls">
+      <button id="play">▶️ Play</button>
+      <button id="pause">⏸️ Pause</button>
+      <button id="regenerate">🔄 Regenerate</button>
+      <button id="debug">🐛 Debug</button>
+      <button id="zoomIn">🔍 Zoom In</button>
+      <button id="zoomOut">🔍 Zoom Out</button>
+    </div>
+
+    <div class="info">
+      <div>Click canvas to regenerate</div>
+      <div>Mouse to move • Scroll to zoom</div>
+      <div>Built with Shades Engine</div>
+    </div>
+
+    <script type="module">
+      // Import from your built library
+      import { ShadesEngine } from "../dist/index.js";
+
+      // Get canvas element
+      const canvas = document.getElementById("canvas");
+
+      // Create Shades engine
+      const shades = new ShadesEngine(canvas, {
+        randomized: true,
+        debug: false,
+        fadeDuration: 2000,
+      });
+
+      // Generate and start
+      shades.generate();
+      shades.start();
+
+      // Wire up controls
+      document.getElementById("play").addEventListener("click", () => {
+        shades.start();
+      });
+
+      document.getElementById("pause").addEventListener("click", () => {
+        shades.pause();
+      });
+
+      document.getElementById("regenerate").addEventListener("click", () => {
+        shades.regenerate();
+      });
+
+      let debugEnabled = false;
+      document.getElementById("debug").addEventListener("click", () => {
+        debugEnabled = !debugEnabled;
+        shades.setDebug(debugEnabled);
+      });
+
+      document.getElementById("zoomIn").addEventListener("click", () => {
+        shades.zoom(1);
+      });
+
+      document.getElementById("zoomOut").addEventListener("click", () => {
+        shades.zoom(-1);
+      });
+
+      // Cleanup on page unload
+      window.addEventListener("beforeunload", () => {
+        shades.destroy();
+      });
+    </script>
+  </body>
+</html>

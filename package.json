@@ -1,16 +1,45 @@
 {
-  "name": "shades",
-  "version": "0.1.0",
-  "description": "TypeScript boilerplate with ESLint and Prettier",
+  "name": "@amphore-dev/shades",
+  "version": "0.2.0",
+  "description": "A framework-agnostic TypeScript library for creating animated shape visualizations on canvas",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "canvas",
+    "animation",
+    "visualization",
+    "shapes",
+    "typescript",
+    "framework-agnostic"
+  ],
+  "author": "Amphore Development Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Amphore-Dev/Shades.git"
+  },
   "scripts": {
     "build": "tsc",
+    "build:watch": "tsc --watch",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build",
+    "example": "npm run build && cd example && npm install && npm run dev"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -22,5 +51,8 @@
     "typescript": "^6.0.2",
     "typescript-eslint": "^8.58.0",
     "@types/node": "^25.5.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
   }
 }
