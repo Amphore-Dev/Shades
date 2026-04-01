@@ -1,2 +1,10 @@
 @import "tailwindcss";
 @import "../fonts.css";
+
+html {
+  overflow: hidden;
+}
+
+.justify-items-right {
+  justify-items: right;
+}
