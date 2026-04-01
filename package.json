@@ -1,6 +1,6 @@
 {
   "name": "@amphore-dev/shades",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Library for creating animated shape visualizations on canvas.",
   "type": "module",
   "main": "dist/index.js",
@@ -28,6 +28,10 @@
     "typescript",
     "library"
   ],
+  "bugs": {
+    "url": "https://github.com/Amphore-Dev/Shades/issues"
+  },
+  "homepage": "https://amphore-dev.github.io/Shades/",
   "author": "Amphore Development Team",
   "license": "MIT",
   "repository": {
