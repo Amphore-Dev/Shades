@@ -1,6 +1,6 @@
 {
   "name": "@amphore-dev/shades",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Library for creating animated shape visualizations on canvas.",
   "type": "module",
   "main": "dist/index.js",

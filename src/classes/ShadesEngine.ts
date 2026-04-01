@@ -47,10 +47,12 @@ export class ShadesEngine {
   private isPlaying = false;
   private elapsedTime = 1;
   private framesCount = { count: 0, fps: 0 };
+  private lastPinchDistance: number | null = null; // For pinch zoom on touch devices
 
   // Event handlers
   private boundHandleClick: () => void;
   private boundHandleMouseMove: (e: MouseEvent) => void;
+  private boundHandleTouchMove: (e: TouchEvent) => void;
   private boundHandleWheel: (e: WheelEvent) => void;
   private boundHandleResize: () => void;
 
@@ -77,6 +79,7 @@ export class ShadesEngine {
     // Bind event handlers
     this.boundHandleClick = this.handleClick.bind(this);
     this.boundHandleMouseMove = this.handleMouseMove.bind(this);
+    this.boundHandleTouchMove = this.handleTouchMove.bind(this); // For touch devices, we can use the same handler as mouse move
     this.boundHandleWheel = this.handleWheel.bind(this);
     this.boundHandleResize = this.handleResize.bind(this);
 
@@ -304,6 +307,36 @@ export class ShadesEngine {
     };
   }
 
+  private handleTouchMove(event: TouchEvent): void {
+    const [touch1, touch2] = event.touches;
+
+    if (!touch1) {
+      return;
+    }
+
+    if (touch1 && touch2) {
+      const currentDistance = Math.hypot(
+        touch2.clientX - touch1.clientX,
+        touch2.clientY - touch1.clientY
+      );
+
+      if (this.lastPinchDistance !== null) {
+        this.zoom((currentDistance - this.lastPinchDistance) * 0.01);
+      }
+
+      this.lastPinchDistance = currentDistance;
+    } else {
+      this.lastPinchDistance = null;
+    }
+
+    const center = this.getCenter();
+
+    this.targetOffset = {
+      x: touch1.clientX - center.x,
+      y: touch1.clientY - center.y,
+    };
+  }
+
   private zoomShades(scale: number): void {
     const nbrShades = this.config.nbrShades;
     let newValue = nbrShades + scale;
@@ -369,6 +402,7 @@ export class ShadesEngine {
     this.canvas.addEventListener("click", this.boundHandleClick);
     this.canvas.addEventListener("wheel", this.boundHandleWheel);
     document.addEventListener("mousemove", this.boundHandleMouseMove);
+    document.addEventListener("touchmove", this.boundHandleTouchMove);
     window.addEventListener("resize", this.boundHandleResize);
   }
 
@@ -376,6 +410,7 @@ export class ShadesEngine {
     this.canvas.removeEventListener("click", this.boundHandleClick);
     this.canvas.removeEventListener("wheel", this.boundHandleWheel);
     document.removeEventListener("mousemove", this.boundHandleMouseMove);
+    document.removeEventListener("touchmove", this.boundHandleTouchMove);
     window.removeEventListener("resize", this.boundHandleResize);
   }
 
