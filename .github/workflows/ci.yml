@@ -1,0 +1,23 @@
+name: "🧪 Run CI Tests"
+
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        description: "Node.js version to use"
+        required: false
+        default: "20.x"
+        type: string
+
+jobs:
+  ci:
+    name: "🧪 Run Tests"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: CI Tests Action
+        uses: ./.github/actions/ci
+        with:
+          node-version: ${{ inputs.node-version }}

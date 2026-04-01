@@ -1,0 +1,39 @@
+name: "🧪 CI Tests Action"
+description: "Run tests and upload coverage reports"
+
+inputs:
+  node-version:
+    description: "Node.js version to use"
+    required: false
+    default: "20.x"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: "npm"
+
+    - name: Restore node_modules cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          node_modules
+          example/node_modules
+        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+
+    - name: Build library
+      shell: bash
+      run: npm run build
+
+    - name: Run Jest Tests
+      shell: bash
+      run: npm test
+
+    - name: Upload coverage reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-reports
+        path: coverage/

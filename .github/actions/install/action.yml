@@ -1,0 +1,41 @@
+name: "📦 Install Dependencies Action"
+description: "Install npm dependencies and cache them"
+
+inputs:
+  node-version:
+    description: "Node.js version to use"
+    required: false
+    default: "20.x"
+
+outputs:
+  cache-hit:
+    description: "Whether the cache was hit"
+    value: ${{ steps.cache.outputs.cache-hit }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: "npm"
+
+    - name: Install root dependencies
+      shell: bash
+      run: npm ci
+
+    - name: Install example dependencies
+      shell: bash
+      run: |
+        cd example
+        npm ci
+
+    - name: Cache node_modules
+      id: cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          node_modules
+          example/node_modules
+        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}

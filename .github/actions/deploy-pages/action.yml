@@ -1,0 +1,54 @@
+name: "🚀 Deploy to GitHub Pages Action"
+description: "Build and deploy example to GitHub Pages"
+
+inputs:
+  node-version:
+    description: "Node.js version to use"
+    required: false
+    default: "20.x"
+
+outputs:
+  page_url:
+    description: "URL where the page was deployed"
+    value: ${{ steps.deployment.outputs.page_url }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: "npm"
+
+    - name: Restore node_modules cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          node_modules
+          example/node_modules
+        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+
+    - name: Build library
+      shell: bash
+      run: npm run build
+
+    - name: Build example app
+      shell: bash
+      env:
+        NODE_ENV: production
+      run: |
+        cd example
+        npm run build
+
+    - name: Setup GitHub Pages
+      uses: actions/configure-pages@v5
+
+    - name: Upload example build artifacts
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: example/dist
+
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
