@@ -5,12 +5,25 @@ on:
   release:
     types: [created]
 
+# Permissions for GitHub Pages deployment
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
   install:
     name: 📦 Install Dependencies
-    uses: ./.github/workflows/install.yml
-    with:
-      node-version: "20.x"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies Action
+        id: install
+        uses: ./.github/actions/install
+        with:
+          node-version: "20.x"
 
   ci:
     name: 🧪 Run Tests
@@ -22,10 +35,28 @@ jobs:
   publish:
     name: 📤 Publish to NPM
     needs: [install, ci]
-    uses: ./.github/workflows/publish.yml
-    with:
-      node-version: "20.x"
-    secrets: inherit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Restore node_modules cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            example/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+
+      - name: Build library for publication
+        shell: bash
+        run: npm run build
+
+      - name: Publish to NPM
+        shell: bash
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ inputs.npm-token }}
 
   deploy-github-pages:
     name: 🚀 Deploy Example to GitHub Pages
