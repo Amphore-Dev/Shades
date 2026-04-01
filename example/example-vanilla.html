@@ -68,13 +68,13 @@
       <button id="pause">⏸️ Pause</button>
       <button id="regenerate">🔄 Regenerate</button>
       <button id="debug">🐛 Debug</button>
-      <button id="zoomIn">🔍 Zoom In</button>
-      <button id="zoomOut">🔍 Zoom Out</button>
+      <button id="moreShades">+ More Shades</button>
+      <button id="lessShades">- Less Shades</button>
     </div>
 
     <div class="info">
       <div>Click canvas to regenerate</div>
-      <div>Mouse to move • Scroll to zoom</div>
+      <div>Mouse to move • Scroll to adjust shades count</div>
       <div>Built with Shades Engine</div>
     </div>
 
@@ -87,7 +87,6 @@
 
       // Create Shades engine
       const shades = new ShadesEngine(canvas, {
-        randomized: true,
         debug: false,
         fadeDuration: 2000,
       });
@@ -115,12 +114,12 @@
         shades.setDebug(debugEnabled);
       });
 
-      document.getElementById("zoomIn").addEventListener("click", () => {
-        shades.zoom(1);
+      document.getElementById("moreShades").addEventListener("click", () => {
+        shades.setShadesCount(1);
       });
 
-      document.getElementById("zoomOut").addEventListener("click", () => {
-        shades.zoom(-1);
+      document.getElementById("lessShades").addEventListener("click", () => {
+        shades.setShadesCount(-1);
       });
 
       // Cleanup on page unload

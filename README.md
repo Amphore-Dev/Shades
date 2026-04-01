@@ -13,7 +13,7 @@ Library for creating animated shape visualizations on canvas.
 🎨 **Multiple shapes** - Circles, squares, triangles, text, spirals, and images  
 🎭 **Smooth animations** - Buttery smooth 60fps animations  
 ⚡ **Performant** - Optimized canvas rendering  
-🎮 **Interactive** - Mouse/touch controls and zoom  
+🎮 **Interactive** - Mouse/touch controls and shades count adjustment  
 🐛 **Debug mode** - Built-in performance monitoring
 
 ## Installation
@@ -33,10 +33,7 @@ import { ShadesEngine } from "@amphore-dev/shades";
 
 const canvas = document.getElementById("myCanvas") as HTMLCanvasElement;
 
-const shades = new ShadesEngine(canvas, {
-  randomized: true,
-  debug: false,
-});
+const shades = new ShadesEngine(canvas);
 
 shades.generate(); // Generate shapes
 shades.start(); // Start animation
@@ -54,9 +51,7 @@ function ShadesComponent() {
 
   useEffect(() => {
     if (canvasRef.current) {
-      shadesRef.current = new ShadesEngine(canvasRef.current, {
-        randomized: true,
-      });
+      shadesRef.current = new ShadesEngine(canvasRef.current);
 
       shadesRef.current.generate();
       shadesRef.current.start();
@@ -87,9 +82,7 @@ let shades: ShadesEngine;
 
 onMounted(() => {
   if (canvasRef.value) {
-    shades = new ShadesEngine(canvasRef.value, {
-      randomized: true,
-    });
+    shades = new ShadesEngine(canvasRef.value);
 
     shades.generate();
     shades.start();
@@ -114,33 +107,32 @@ new ShadesEngine(canvas: HTMLCanvasElement, options?: TShadesEngineOptions)
 
 ```typescript
 interface TShadesEngineOptions {
-  shapes?: TShadeType[]; // Shape types to use for generation (ex: ["circle", "star"])
+  shapes?: TShadeType[]; // Shape types to use for generation (ex: ["circle", "square"])
   customShapes?: Record<string, TShadeTypeConstructor>; // Custom shape classes (ex: { "star": StarShape })
-  randomized?: boolean; // Enable randomized generation
-  debug?: boolean; // Show debug information
+  debug?: boolean | TShadesEngineDebugOptions; // Show debug information or options
   fadeDuration?: number; // Fade duration in milliseconds (default: 500ms)
 }
 ```
 
 ### Methods
 
-| Method                       | Description                        |
-| ---------------------------- | ---------------------------------- |
-| `generate()`                 | Generate shapes and setup          |
-| `start()`                    | Start animation                    |
-| `pause()`                    | Pause animation                    |
-| `regenerate()`               | Generate new shapes                |
-| `destroy()`                  | Cleanup and remove event listeners |
-| `zoom(scale: number)`        | Zoom in/out                        |
-| `setDebug(enabled: boolean)` | Toggle debug mode                  |
-| `getShadesConfig()`          | Get current configuration          |
-| `isAnimating()`              | Check if animation is running      |
+| Method                          | Description                        |
+| ------------------------------- | ---------------------------------- |
+| `generate()`                    | Generate shapes and setup          |
+| `start()`                       | Start animation                    |
+| `pause()`                       | Pause animation                    |
+| `regenerate()`                  | Generate new shapes                |
+| `destroy()`                     | Cleanup and remove event listeners |
+| `setShadesCount(scale: number)` | Adjust number of shades            |
+| `setDebug(enabled: boolean)`    | Toggle debug mode                  |
+| `getShadesConfig()`             | Get current configuration          |
+| `isAnimating()`                 | Check if animation is running      |
 
 ### Controls
 
 - **Click** - Regenerate shapes
 - **Mouse move** - Parallax effect
-- **Mouse wheel** - Zoom in/out
+- **Mouse wheel** - Adjust number of shades
 
 ## Custom Shapes
 
@@ -229,7 +221,6 @@ import { ShadesEngine } from "@amphore-dev/shades";
 import { StarShape } from "./StarShape";
 
 const engine = new ShadesEngine(canvas, {
-  shapes: ["star", "circle", "heart"], // Mix built-in and custom
   customShapes: {
     star: StarShape, // Register your custom shape
   },
@@ -249,40 +240,21 @@ engine.start();
 
 ## Advanced Usage
 
+### Debug Mode
+
 ```typescript
 import { ShadesEngine } from "@amphore-dev/shades";
 
+// Simple debug mode
 const shades = new ShadesEngine(canvas, {
-  shapes: [
-    {
-      type: "circle",
-      nbrItemsX: 10,
-      nbrItemsY: 10,
-      spacing: 20,
-      colors: [
-        { r: 255, g: 100, b: 100 },
-        { r: 100, g: 255, b: 100 },
-      ],
-    },
-  ],
+  debug: true,
 });
-```
 
-## Advanced Usage
-
-### Custom Colors
-
-```typescript
-import { ShadesEngine, getRandColors } from "@amphore-dev/shades";
-
-const customColors = [
-  { r: 255, g: 0, b: 0 },
-  { r: 0, g: 255, b: 0 },
-  { r: 0, g: 0, b: 255 },
-];
-
-const shades = new ShadesEngine(canvas, {
-  shapes: [{ colors: customColors }],
+// Debug with custom styling
+const shadesCustom = new ShadesEngine(canvas, {
+  debug: {
+    className: "my-debug-class",
+  },
 });
 ```
 
@@ -295,14 +267,24 @@ The engine automatically handles:
 - Animation frame management
 - Memory cleanup
 
+### Custom Fade Duration
+
+```typescript
+const shades = new ShadesEngine(canvas, {
+  fadeDuration: 2000, // 2 seconds fade
+});
+```
+
 ## Examples
 
-Check out `example/example-vanilla.html` for a complete example with controls.
+- **React Example**: See [`example/`](./example/) directory for a complete React implementation
+- **Advanced Example**: Check [`example-with-custom-shape/`](./example-with-custom-shape/) for custom shapes
+- **Vanilla JavaScript**: See [`example/example-vanilla.html`](./example/example-vanilla.html) for a pure JS example
 
 ## Building From Source
 
 ```bash
-git clone https://github.com/Amphore-Dev/shades.git
+git clone <repository-url>
 cd shades
 npm install
 npm run build
@@ -310,8 +292,4 @@ npm run build
 
 ## License
 
-MIT © [Your Name]
-
----
-
-**Framework-agnostic by design** 🚀
+MIT © Amphore Dev

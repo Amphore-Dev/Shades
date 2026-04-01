@@ -17,7 +17,6 @@ export type TShadesEngineDebugOptions = {
 export type TShadesEngineOptions = {
   shapes?: TShadeType[]; // Allows specifying a list of shape types to use for each generation (e.g., ["circle", "square"])
   customShapes?: Record<string, TShadeTypeConstructor>; // Allows providing custom shape classes (e.g., { "myShape": MyCustomShape })
-  randomized?: boolean;
   debug?: boolean | TShadesEngineDebugOptions;
   fadeDuration?: number; // Fade duration in milliseconds (default: 500ms)
 };
@@ -47,7 +46,7 @@ export class ShadesEngine {
   private isPlaying = false;
   private elapsedTime = 1;
   private framesCount = { count: 0, fps: 0 };
-  private lastPinchDistance: number | null = null; // For pinch zoom on touch devices
+  private lastPinchDistance: number | null = null; // For pinch to adjust shades on touch devices
 
   // Event handlers
   private boundHandleClick: () => void;
@@ -321,7 +320,9 @@ export class ShadesEngine {
       );
 
       if (this.lastPinchDistance !== null) {
-        this.zoom((currentDistance - this.lastPinchDistance) * 0.01);
+        this.adjustShadesCount(
+          (currentDistance - this.lastPinchDistance) * 0.01
+        );
       }
 
       this.lastPinchDistance = currentDistance;
@@ -337,7 +338,7 @@ export class ShadesEngine {
     };
   }
 
-  private zoomShades(scale: number): void {
+  private adjustShadesCount(scale: number): void {
     const nbrShades = this.config.nbrShades;
     let newValue = nbrShades + scale;
 
@@ -355,8 +356,8 @@ export class ShadesEngine {
     event.preventDefault();
     const forceScroll = event.deltaY;
 
-    if (forceScroll < 0) return this.zoomShades(0.1);
-    if (forceScroll > 0) return this.zoomShades(-0.1);
+    if (forceScroll < 0) return this.adjustShadesCount(0.1);
+    if (forceScroll > 0) return this.adjustShadesCount(-0.1);
   }
 
   private handleClick(): void {
@@ -465,8 +466,8 @@ export class ShadesEngine {
     return this.isPlaying;
   }
 
-  public zoom(scale: number): void {
-    this.zoomShades(scale);
+  public setShadesCount(scale: number): void {
+    this.adjustShadesCount(scale);
   }
 
   // Debug methods

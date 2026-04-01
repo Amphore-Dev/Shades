@@ -114,7 +114,6 @@ describe("ShadesEngine", () => {
     it("should accept options parameter", () => {
       const options: TShadesEngineOptions = {
         shapes: ["circle", "square"],
-        randomized: false,
         debug: true,
         fadeDuration: 1000,
       };
@@ -258,10 +257,10 @@ describe("ShadesEngine", () => {
       expect(Array.isArray(items)).toBe(true);
     });
 
-    it("should handle zoom operations", () => {
+    it("should handle shades count adjustment operations", () => {
       expect(() => {
-        engine.zoom(0.5);
-        engine.zoom(-0.5);
+        engine.setShadesCount(0.5);
+        engine.setShadesCount(-0.5);
       }).not.toThrow();
     });
   });
@@ -365,11 +364,6 @@ describe("ShadesEngine", () => {
       expect(engine2).toBeDefined();
     });
 
-    it("should handle randomized option", () => {
-      const engineer = new ShadesEngine(canvas, { randomized: false });
-      expect(engineer).toBeDefined();
-    });
-
     it("should handle custom shapes configuration", () => {
       const customShapes = {
         custom: class CustomShape {} as any,
@@ -444,39 +438,39 @@ describe("ShadesEngine", () => {
     });
   });
 
-  describe("zoom functionality", () => {
+  describe("shades count adjustment functionality", () => {
     let engine: ShadesEngine;
 
     beforeEach(() => {
       engine = new ShadesEngine(canvas);
     });
 
-    it("should zoom in with positive scale", () => {
+    it("should increase shades count with positive scale", () => {
       const initialConfig = engine.getShadesConfig();
-      engine.zoom(0.1);
+      engine.setShadesCount(0.1);
       const newConfig = engine.getShadesConfig();
 
       expect(newConfig.nbrShades).toBeGreaterThan(initialConfig.nbrShades);
     });
 
-    it("should zoom out with negative scale", () => {
-      engine.zoom(2);
-      const configAfterZoomIn = engine.getShadesConfig();
+    it("should decrease shades count with negative scale", () => {
+      engine.setShadesCount(2);
+      const configAfterIncrease = engine.getShadesConfig();
 
-      engine.zoom(-1);
-      const configAfterZoomOut = engine.getShadesConfig();
+      engine.setShadesCount(-1);
+      const configAfterDecrease = engine.getShadesConfig();
 
-      expect(configAfterZoomOut.nbrShades).toBeLessThan(
-        configAfterZoomIn.nbrShades
+      expect(configAfterDecrease.nbrShades).toBeLessThan(
+        configAfterIncrease.nbrShades
       );
     });
 
-    it("should respect zoom limits", () => {
-      engine.zoom(-100);
+    it("should respect shades count limits", () => {
+      engine.setShadesCount(-100);
       const configMin = engine.getShadesConfig();
       expect(configMin.nbrShades).toBeGreaterThanOrEqual(1);
 
-      engine.zoom(1000);
+      engine.setShadesCount(1000);
       const configMax = engine.getShadesConfig();
       expect(configMax.nbrShades).toBeLessThanOrEqual(100);
     });
