@@ -6,8 +6,26 @@ function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<ShadesEngine | null>(null);
 
+  const toggleFullScreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  };
+
+  const handleFullScreenToggle = (e: KeyboardEvent) => {
+    if (e.key === "f") {
+      toggleFullScreen();
+    }
+  };
+
   useEffect(() => {
     if (!canvasRef.current) return;
+
+    window.addEventListener("keydown", handleFullScreenToggle);
 
     // Initialize ShadesEngine with custom shape
     engineRef.current = new ShadesEngine(canvasRef.current, {
@@ -28,6 +46,7 @@ function App() {
       if (engineRef.current) {
         engineRef.current.destroy();
       }
+      window.removeEventListener("keydown", handleFullScreenToggle);
     };
   }, []);
 

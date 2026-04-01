@@ -216,22 +216,6 @@ export class ShadesEngine {
     this.genCount++;
   }
 
-  public start(): void {
-    if (this.isPlaying) return;
-
-    this.isPlaying = true;
-    this.animate();
-    this.startFPSCounter();
-  }
-
-  public pause(): void {
-    this.isPlaying = false;
-    if (this.animationFrameId) {
-      cancelAnimationFrame(this.animationFrameId);
-      this.animationFrameId = null;
-    }
-  }
-
   private animate(): void {
     if (!this.isPlaying) return;
 
@@ -396,6 +380,23 @@ export class ShadesEngine {
   }
 
   // Public API methods for external interaction
+
+  public start(): void {
+    if (this.isPlaying) return;
+
+    this.isPlaying = true;
+    this.animate();
+    this.startFPSCounter();
+  }
+
+  public pause(): void {
+    this.isPlaying = false;
+    if (this.animationFrameId) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
+    }
+  }
+
   public destroy(): void {
     this.pause();
     this.detachEventListeners();

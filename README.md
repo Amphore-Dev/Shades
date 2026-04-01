@@ -2,6 +2,10 @@
 
 Library for creating animated shape visualizations on canvas.
 
+## 🚀 Live Demo
+
+[View the interactive demo](https://amphore-dev.github.io/Shades/) (deployed from the [`example/`](./example/) directory)
+
 ## Features
 
 ✨ **Framework-agnostic** - Works with React, Vue, Angular, Svelte, or vanilla JavaScript  
