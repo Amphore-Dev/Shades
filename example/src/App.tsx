@@ -1,6 +1,9 @@
 import { useRef, useEffect } from "react";
 import { ShadesEngine } from "@amphore-dev/shades";
-import { StarShape } from "./shapes/StarShape";
+
+// Custom shapes (uncomment if you want to use them, and make sure to import them at the top)
+// import { StarShape } from "./shapes/StarShape";
+// import { HeartShape } from "./shapes/HeartShape";
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -33,7 +36,8 @@ function App() {
       debug: false,
       customShapes: {
         // Register custom shape
-        star: StarShape,
+        // star: StarShape,
+        // heart: HeartShape,
       },
     });
 

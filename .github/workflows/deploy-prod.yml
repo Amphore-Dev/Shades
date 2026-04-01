@@ -1,4 +1,4 @@
-name: ☢︎ Publish Production Package
+name: ☢️ Publish Production Package
 
 on:
   workflow_dispatch:
@@ -84,6 +84,9 @@ jobs:
     name: 📤 Publish to NPM
     runs-on: ubuntu-latest
     needs: [install, ci]
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -107,7 +110,7 @@ jobs:
         run: npm run build
 
       - name: Publish to NPM
-        run: npm publish --access public
+        run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 

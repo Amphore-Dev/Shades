@@ -1,6 +1,5 @@
 import { CircleShape } from "../../src/classes/shapes/CircleShape";
 import { SquaredShape } from "../../src/classes/shapes/SquaredShape";
-import { HeartShape } from "../../src/classes/shapes/HeartShape";
 import { TriangleShape } from "../../src/classes/shapes/TriangleShape";
 import { SpiralShape } from "../../src/classes/shapes/SpiralShape";
 import { TextShape } from "../../src/classes/shapes/TextShape";
@@ -40,7 +39,6 @@ describe("Shape inheritance and polymorphism", () => {
     const shapes = [
       new CircleShape(0, 0, testColor),
       new SquaredShape(0, 0, testColor),
-      new HeartShape(0, 0, testColor),
       new TriangleShape(0, 0, testColor),
       new SpiralShape(0, 0, testColor),
       new TextShape(0, 0, testColor),
@@ -66,7 +64,6 @@ describe("Shape inheritance and polymorphism", () => {
     const shapes = [
       new CircleShape(0, 0, testColor),
       new SquaredShape(0, 0, testColor),
-      new HeartShape(0, 0, testColor),
       new TriangleShape(0, 0, testColor),
       new SpiralShape(0, 0, testColor),
       new TextShape(0, 0, testColor),
@@ -80,7 +77,6 @@ describe("Shape inheritance and polymorphism", () => {
     expect(types).toEqual([
       "circle",
       "square",
-      "heart",
       "triangle",
       "spiral",
       "text",
@@ -92,7 +88,6 @@ describe("Shape inheritance and polymorphism", () => {
     const shapes = [
       new CircleShape(0, 0, testColor),
       new SquaredShape(0, 0, testColor),
-      new HeartShape(0, 0, testColor),
       new TriangleShape(0, 0, testColor),
       new SpiralShape(0, 0, testColor),
       new TextShape(0, 0, testColor),
@@ -111,7 +106,6 @@ describe("Shape inheritance and polymorphism", () => {
   it("should handle different default filled states correctly", () => {
     const filledByDefault = [
       new CircleShape(0, 0, testColor),
-      new HeartShape(0, 0, testColor),
       new TriangleShape(0, 0, testColor),
       new TextShape(0, 0, testColor),
       new ImageShape(0, 0, testColor),
@@ -140,7 +134,6 @@ describe("Shape inheritance and polymorphism", () => {
     const noRotationByDefault = [
       new CircleShape(0, 0, testColor),
       new SquaredShape(0, 0, testColor),
-      new HeartShape(0, 0, testColor),
       new TextShape(0, 0, testColor),
       new ImageShape(0, 0, testColor),
     ];
@@ -194,7 +187,6 @@ describe("Shape configuration and options", () => {
     const shapes = [
       new CircleShape(0, 0, testColor, customOptions),
       new SquaredShape(0, 0, testColor, customOptions),
-      new HeartShape(0, 0, testColor, customOptions),
       new TriangleShape(0, 0, testColor, customOptions),
       new SpiralShape(0, 0, testColor, customOptions),
     ];
@@ -216,7 +208,6 @@ describe("Shape configuration and options", () => {
       const shapes = [
         new CircleShape(0, 0, color),
         new SquaredShape(0, 0, color),
-        new HeartShape(0, 0, color),
         new TriangleShape(0, 0, color),
         new SpiralShape(0, 0, color),
         new TextShape(0, 0, color),

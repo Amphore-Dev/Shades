@@ -97,7 +97,6 @@ describe("Constants", () => {
     it("should contain expected shape types", () => {
       expect(SHADES_TYPES).toContain("square");
       expect(SHADES_TYPES).toContain("circle");
-      expect(SHADES_TYPES).toContain("heart");
       expect(SHADES_TYPES).toContain("text");
       expect(SHADES_TYPES).toContain("spiral");
       expect(SHADES_TYPES).toContain("triangle");

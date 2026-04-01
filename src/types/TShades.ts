@@ -1,7 +1,6 @@
 import { SHADES_TYPES } from "@/constants/CShades.js";
 import {
   CircleShape,
-  HeartShape,
   ImageShape,
   SpiralShape,
   SquaredShape,
@@ -14,7 +13,6 @@ export type TShadeType = (typeof SHADES_TYPES)[number] | string;
 export type TShadeTypeConstructor =
   | typeof SquaredShape
   | typeof CircleShape
-  | typeof HeartShape
   | typeof TextShape
   | typeof SpiralShape
   | typeof ImageShape
@@ -27,7 +25,6 @@ type IShadeTypeConstructors = {
 export const SHADES_TYPES_CONSTRUCTORS_LIST: IShadeTypeConstructors = {
   square: SquaredShape,
   circle: CircleShape,
-  heart: HeartShape,
   text: TextShape,
   spiral: SpiralShape,
   image: ImageShape,

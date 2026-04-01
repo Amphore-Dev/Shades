@@ -1,7 +1,10 @@
-import { TShadeColor, TShadeConfig, TShapeOptions } from "../../types/index.js";
-import { TPoint } from "../../types/TPoints.js";
-import { ShadeItem } from "./BaseShape.js";
-
+import { ShadeItem } from "@amphore-dev/shades";
+import type {
+  TShadeColor,
+  TShadeConfig,
+  TShapeOptions,
+  TPoint,
+} from "@amphore-dev/shades";
 /**
  * Heart shape implementation for drawing heart shapes
  */
