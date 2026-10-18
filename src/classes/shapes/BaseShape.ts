@@ -53,12 +53,27 @@ export class ShadeItem {
     ctx.lineCap = savedLineCap;
   };
 
+  // Style of each shade layer, built once instead of on every frame; reset
+  // when the shades count (gradRatio) or the color changes
+  private shadeStyles: string[] = [];
+  private shadeStylesFor: { gradRatio: number; color: TShadeColor } | null =
+    null;
+
   setColors = (ctx: CanvasRenderingContext2D, gradRatio: number, i: number) => {
     if (!this.color) return;
+
+    const cache = this.shadeStylesFor;
+    if (!cache || cache.gradRatio !== gradRatio || cache.color !== this.color) {
+      this.shadeStyles = [];
+      this.shadeStylesFor = { gradRatio, color: this.color };
+    }
+
     const { r, g, b } = this.color;
-    if (this.filled)
-      ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${1 - (gradRatio * i) / 100})`;
-    else
-      ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${1 - (gradRatio * i) / 100})`;
+    const style = (this.shadeStyles[i] ??= `rgba(${r}, ${g}, ${b}, ${
+      1 - (gradRatio * i) / 100
+    })`);
+
+    if (this.filled) ctx.fillStyle = style;
+    else ctx.strokeStyle = style;
   };
 }
