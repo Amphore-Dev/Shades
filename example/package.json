@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@amphore-dev/shades": "file:..",
+    "leva": "^0.10.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   },

@@ -785,7 +785,7 @@ export class ShadesEngine {
   // Debug methods
 
   private initializeDebug(): void {
-    if (this.options.debug) {
+    if (this.options.debug && !this.debugContainer) {
       const debugElement = document.createElement("pre");
       debugElement.className =
         typeof this.options.debug === "object" && this.options.debug.className
@@ -847,10 +847,8 @@ Generation: ${this.genCount}
     if (value) {
       this.initializeDebug();
     } else {
-      const debugElement = document.querySelector(".shades-debug");
-      if (debugElement) {
-        debugElement.remove();
-      }
+      this.debugContainer?.remove();
+      this.debugContainer = null;
     }
   }
 }

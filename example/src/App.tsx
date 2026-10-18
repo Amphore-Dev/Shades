@@ -2,6 +2,7 @@ import { useRef, useEffect, useState } from "react";
 import { ShadesEngine } from "@amphore-dev/shades";
 import { Modal } from "./components/Modal/Modal";
 import { Key } from "./components/Modal/Key";
+import { LevaControls } from "./components/LevaControls";
 
 // Custom shapes (uncomment if you want to use them, and make sure to import them at the top)
 // import { StarShape } from "./shapes/StarShape";
@@ -25,6 +26,8 @@ function App() {
   };
 
   const handleFullScreenToggle = (e: KeyboardEvent) => {
+    // Ignore keys typed in the Leva panel inputs
+    if (e.target instanceof HTMLInputElement) return;
     if (e.key === "f") {
       toggleFullScreen();
     }
@@ -33,11 +36,9 @@ function App() {
   const handleModalClose = () => {
     setIsModalOpen(false);
     isModalOpenRef.current = false;
-    // Recenter the parallax, then drift on its own 5s after the last
-    // mouse/touch move, and change shape every 10s while drifting
+    // Recenter the parallax; auto-move and auto-next are applied from the
+    // Leva panel once the modal is closed
     engineRef.current?.setTargetOffset();
-    engineRef.current?.setAutoMove({ resumeDelay: 5000 });
-    engineRef.current?.setAutoNext(10000);
   };
 
   useEffect(() => {
@@ -116,6 +117,7 @@ function App() {
           </tbody>
         </table>
       </Modal>
+      <LevaControls engineRef={engineRef} isModalOpen={isModalOpen} />
       {/* Canvas */}
       <canvas
         ref={canvasRef}

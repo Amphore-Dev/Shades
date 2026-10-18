@@ -509,4 +509,20 @@ describe("ShadesEngine options", () => {
       expect(next).toHaveBeenCalledTimes(1);
     });
   });
+  describe("setDebug", () => {
+    it("adds a single debug element and removes it", () => {
+      const parent = document.createElement("div");
+      const canvas = document.createElement("canvas");
+      parent.appendChild(canvas);
+      const engine = new ShadesEngine(canvas, {
+        debug: { className: "custom-debug" },
+      });
+
+      engine.setDebug({ className: "custom-debug" });
+      expect(parent.querySelectorAll("pre")).toHaveLength(1);
+
+      engine.setDebug(false);
+      expect(parent.querySelectorAll("pre")).toHaveLength(0);
+    });
+  });
 });
