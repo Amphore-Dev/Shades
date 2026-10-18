@@ -653,13 +653,28 @@ export class ShadesEngine {
 
   /**
    * Sets the gaps between the current generation's items (0 at least) and
-   * rebuilds them. `spacingY` defaults to `spacingX`.
+   * moves them accordingly: the items themselves (colors, fill, rotation)
+   * are kept. `spacingY` defaults to `spacingX`.
    */
   public setSpacing(spacingX: number, spacingY: number = spacingX): void {
-    this.rebuildItems({
-      spacing: Math.max(spacingX, 0),
-      spacingY: Math.max(spacingY, 0),
+    const spacing = Math.max(spacingX, 0);
+    const gapY = Math.max(spacingY, 0);
+    const { width, height, nbrItemsX, nbrItemsY } = this.config;
+
+    // Items are built column by column: index = x * nbrItemsY + y
+    this.items.forEach((item, index) => {
+      const x = Math.floor(index / nbrItemsY);
+      const y = index % nbrItemsY;
+      item.position = { x: x * (width + spacing), y: y * (height + gapY) };
     });
+
+    this.config = {
+      ...this.config,
+      spacing,
+      spacingY: gapY,
+      totalWidth: nbrItemsX * width + (nbrItemsX - 1) * spacing,
+      totalHeight: nbrItemsY * height + (nbrItemsY - 1) * gapY,
+    };
   }
 
   /**

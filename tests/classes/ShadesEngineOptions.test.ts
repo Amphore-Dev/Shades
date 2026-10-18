@@ -846,10 +846,18 @@ describe("ShadesEngine options", () => {
       const { engine } = createEngine({ presets: [grid], onGenerate });
       engine.generate();
 
+      const items = engine.getItems();
+
       engine.setSpacing(8, 2);
       let config = engine.getShadesConfig();
       expect(config.totalWidth).toBe(3 * 10 + 2 * 8);
       expect(config.totalHeight).toBe(2 * 10 + 1 * 2);
+      // Same items, moved: column 2, row 1 is the last one
+      engine.getItems().forEach((item, i) => expect(item).toBe(items[i]));
+      expect(engine.getItems()[5].position).toEqual({
+        x: 2 * (10 + 8),
+        y: 1 * (10 + 2),
+      });
 
       engine.setSpacing(-4);
       config = engine.getShadesConfig();
