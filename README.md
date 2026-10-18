@@ -125,18 +125,20 @@ interface TShadesEngineOptions {
 
 ### Methods
 
-| Method                          | Description                        |
-| ------------------------------- | ---------------------------------- |
-| `generate()`                    | Generate shapes and setup          |
-| `start()`                       | Start animation                    |
-| `pause()`                       | Pause animation                    |
-| `next()`                        | Play the next generation           |
-| `regenerate()`                  | Alias of `next()`                  |
-| `destroy()`                     | Cleanup and remove event listeners |
-| `setShadesCount(scale: number)` | Adjust number of shades            |
-| `setDebug(enabled: boolean)`    | Toggle debug mode                  |
-| `getShadesConfig()`             | Get current configuration          |
-| `isAnimating()`                 | Check if animation is running      |
+| Method                          | Description                            |
+| ------------------------------- | -------------------------------------- |
+| `generate()`                    | Generate shapes and setup              |
+| `start()`                       | Start animation                        |
+| `pause()`                       | Pause animation                        |
+| `next()`                        | Play the next generation               |
+| `regenerate()`                  | Alias of `next()`                      |
+| `destroy()`                     | Cleanup and remove event listeners     |
+| `setShadesCount(scale: number)` | Adjust number of shades                |
+| `setAutoMove(value)`            | Enable/disable/configure auto-move     |
+| `setTargetOffset(offset?)`      | Move parallax target (default: center) |
+| `setDebug(enabled: boolean)`    | Toggle debug mode                      |
+| `getShadesConfig()`             | Get current configuration              |
+| `isAnimating()`                 | Check if animation is running          |
 
 ### Controls
 
@@ -171,8 +173,21 @@ new ShadesEngine(canvas, {
   intro: true,
   presets: [
     { type: "logo", nbrShades: 30, thickness: 1 },
-    { type: "square", nbrShades: 10, nbrItemsX: 6, nbrItemsY: 14, width: 100, spacing: 30 },
-    { type: "text", colors: [{ r: 0, g: 0, b: 0 }, { r: 255, g: 200, b: 87 }] },
+    {
+      type: "square",
+      nbrShades: 10,
+      nbrItemsX: 6,
+      nbrItemsY: 14,
+      width: 100,
+      spacing: 30,
+    },
+    {
+      type: "text",
+      colors: [
+        { r: 0, g: 0, b: 0 },
+        { r: 255, g: 200, b: 87 },
+      ],
+    },
   ],
   presetsEnd: "loop",
   onGenerate: (config, { generation, intro, presetIndex }) => {

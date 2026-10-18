@@ -703,6 +703,26 @@ export class ShadesEngine {
     this.adjustShadesCount(scale);
   }
 
+  /**
+   * Enables, disables or reconfigures auto-move at runtime. Like on start,
+   * the first drift waits `resumeDelay`.
+   */
+  public setAutoMove(value: boolean | TShadesAutoMoveOptions): void {
+    this.options.autoMove = value;
+    this.initializeAutoMove();
+    this.lastPointerMoveTime = performance.now();
+  }
+
+  /**
+   * Moves the parallax target, relative to the canvas center (defaults to
+   * the center), as if the pointer moved there. Auto-move resumes after
+   * `resumeDelay`.
+   */
+  public setTargetOffset(offset: TPoint = { x: 0, y: 0 }): void {
+    this.targetOffset = { ...offset };
+    this.lastPointerMoveTime = performance.now();
+  }
+
   // Debug methods
 
   private initializeDebug(): void {

@@ -340,6 +340,44 @@ describe("ShadesEngine options", () => {
       expect((engine as any).targetOffset).not.toEqual({ x: 0, y: 0 });
     });
 
+    it("can be enabled at runtime, after resumeDelay", () => {
+      const engine = createAutoMoveEngine({ autoMove: false });
+
+      frame(engine, 1000);
+      expect((engine as any).targetOffset).toEqual({ x: 0, y: 0 });
+
+      now = 2000;
+      engine.setAutoMove({ resumeDelay: 1000 });
+      frame(engine, 2500);
+      expect((engine as any).targetOffset).toEqual({ x: 0, y: 0 });
+
+      frame(engine, 3500);
+      expect((engine as any).targetOffset).not.toEqual({ x: 0, y: 0 });
+    });
+
+    it("can be disabled at runtime", () => {
+      const engine = createAutoMoveEngine();
+      engine.setAutoMove(false);
+
+      frame(engine, 60000);
+      expect((engine as any).targetOffset).toEqual({ x: 0, y: 0 });
+    });
+
+    it("holds a target set with setTargetOffset until resumeDelay", () => {
+      const engine = createAutoMoveEngine({
+        autoMove: { resumeDelay: 1000 },
+      });
+
+      now = 5000;
+      engine.setTargetOffset();
+      frame(engine, 5500);
+      expect((engine as any).targetOffset).toEqual({ x: 0, y: 0 });
+
+      engine.setTargetOffset({ x: 10, y: -20 });
+      frame(engine, 5600);
+      expect((engine as any).targetOffset).toEqual({ x: 10, y: -20 });
+    });
+
     it("stays off when the user prefers reduced motion", () => {
       (window as any).matchMedia = jest.fn(() => ({ matches: true }));
       const engine = createAutoMoveEngine();
