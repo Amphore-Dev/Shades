@@ -340,15 +340,52 @@ describe("ShadesEngine options", () => {
     });
 
     it("calls a custom path with the time scaled by speed", () => {
-      const path = jest.fn(() => ({ x: 1, y: -0.5 }));
+      const path = jest.fn((_t: number) => ({ x: 1, y: -0.5 }));
       const engine = createAutoMoveEngine({
         autoMove: { path, speed: 2, amplitude: 0.1 },
       });
 
       frame(engine, 5000);
+      frame(engine, 5100);
 
-      expect(path).toHaveBeenCalledWith(10);
+      // 0.1s elapsed, times speed 2
+      expect(path.mock.calls.at(-1)?.[0]).toBeCloseTo(0.2);
       expect((engine as any).targetOffset).toEqual({ x: 60, y: -30 });
+    });
+
+    it("doesn't jump when speed or path settings change", () => {
+      const engine = createAutoMoveEngine({ autoMove: { resumeDelay: 0 } });
+
+      frame(engine, 1000);
+      frame(engine, 1016);
+      const before = { ...(engine as any).targetOffset };
+
+      engine.setAutoMove({ resumeDelay: 0, speed: 10 });
+      frame(engine, 1032);
+      const after = (engine as any).targetOffset;
+
+      expect(Math.hypot(after.x - before.x, after.y - before.y)).toBeLessThan(
+        1
+      );
+    });
+
+    it("moves both axes smoothly instead of snapping one at a time", () => {
+      const engine = createAutoMoveEngine({
+        autoMove: { resumeDelay: 0, path: "circle", speed: 5 },
+      });
+      // Start on the target so only the tracking itself is measured
+      frame(engine, 0);
+      (engine as any).offset = { ...(engine as any).targetOffset };
+
+      for (let time = 16; time < 20000; time += 16) {
+        const previous = { ...(engine as any).offset };
+        frame(engine, time);
+        const { offset, targetOffset } = engine as any;
+
+        // A per-axis snap would land exactly on the target
+        if (offset.x !== previous.x) expect(offset.x).not.toBe(targetOffset.x);
+        if (offset.y !== previous.y) expect(offset.y).not.toBe(targetOffset.y);
+      }
     });
 
     it("lets the pointer take over, then resumes after resumeDelay", () => {

@@ -130,6 +130,9 @@ export class ShadesEngine {
   private autoMove: Required<TShadesAutoMoveOptions> | null = null;
   private autoMovePhases: number[] = [];
   private lastPointerMoveTime = -Infinity;
+  // Path time (s), advanced by frame delta x speed so speed changes don't jump
+  private autoMoveTime = 0;
+  private lastFrameTime: number | null = null;
   private fade = {
     isFading: true,
     opacity: 0,
@@ -196,19 +199,22 @@ export class ShadesEngine {
       path: "drift",
       ...(typeof autoMove === "object" ? autoMove : {}),
     };
-    // Random phases so each instance follows its own path
-    this.autoMovePhases = Array.from(
-      { length: 4 },
-      () => Math.random() * Math.PI * 2
-    );
+    // Random phases so each instance follows its own path, kept when
+    // reconfigured so the path doesn't jump
+    if (!this.autoMovePhases.length) {
+      this.autoMovePhases = Array.from(
+        { length: 4 },
+        () => Math.random() * Math.PI * 2
+      );
+    }
   }
 
   /** Smooth looping path (sum of slow sines, same as the screensaver). */
-  private getAutoMoveOffset(time: number): TPoint {
-    const { amplitude, speed, path } = this.autoMove!;
+  private getAutoMoveOffset(): TPoint {
+    const { amplitude, path } = this.autoMove!;
     const range =
       Math.min(this.canvas.clientWidth, this.canvas.clientHeight) * amplitude;
-    const t = (time / 1000) * speed;
+    const t = this.autoMoveTime;
     const point =
       typeof path === "function" ? path(t) : this.getBuiltinPathPoint(path, t);
 
@@ -441,8 +447,16 @@ export class ShadesEngine {
       !!this.autoMove &&
       start - this.lastPointerMoveTime > this.autoMove.resumeDelay;
 
+    // Clamped so a long pause (hidden tab) doesn't skip along the path
+    const deltaTime =
+      this.lastFrameTime === null
+        ? 0
+        : Math.min((start - this.lastFrameTime) / 1000, 0.1);
+    this.lastFrameTime = start;
+
     if (isAutoMoving) {
-      this.targetOffset = this.getAutoMoveOffset(start);
+      this.autoMoveTime += deltaTime * this.autoMove!.speed;
+      this.targetOffset = this.getAutoMoveOffset();
     }
 
     // Smooth offset animation, slower while auto-moving for a softer drift
@@ -452,17 +466,16 @@ export class ShadesEngine {
       y: (this.targetOffset.y - this.offset.y) * step + this.offset.y,
     };
 
+    // Settle on a still target. Never per axis, nor while auto-moving:
+    // snapping one axis at a time turns curves into stairs
     if (
-      this.offset.x !== this.targetOffset.x &&
-      Math.abs(this.offset.x - this.targetOffset.x) < 1
+      !isAutoMoving &&
+      Math.hypot(
+        this.offset.x - this.targetOffset.x,
+        this.offset.y - this.targetOffset.y
+      ) < 0.5
     ) {
-      this.offset.x = this.targetOffset.x;
-    }
-    if (
-      this.offset.y !== this.targetOffset.y &&
-      Math.abs(this.offset.y - this.targetOffset.y) < 1
-    ) {
-      this.offset.y = this.targetOffset.y;
+      this.offset = { ...this.targetOffset };
     }
 
     // Fade animation
@@ -703,6 +716,7 @@ export class ShadesEngine {
 
   public pause(): void {
     this.isPlaying = false;
+    this.lastFrameTime = null;
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = null;
