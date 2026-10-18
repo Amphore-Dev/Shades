@@ -366,8 +366,9 @@ describe("ShadesEngine options", () => {
       frame(engine, 1032);
       const after = (engine as any).targetOffset;
 
+      // One 16ms frame at speed 10 moves ~1px; a jump would be tens of px
       expect(Math.hypot(after.x - before.x, after.y - before.y)).toBeLessThan(
-        1
+        5
       );
     });
 

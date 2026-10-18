@@ -8,5 +8,14 @@ export default tseslint.config(
   eslintConfigPrettier,
   {
     ignores: ["dist/**", "node_modules/**", "example/**"],
+  },
+  {
+    rules: {
+      // Prefixed params are required by a signature but unused
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_" },
+      ],
+    },
   }
 );

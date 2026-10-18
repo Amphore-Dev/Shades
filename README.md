@@ -392,7 +392,7 @@ const shades = new ShadesEngine(canvas, {
 ## Examples
 
 - **React Example**: See [`example/`](./example/) directory for a complete React implementation
-- **Advanced Example**: Check [`example-with-custom-shape/`](./example-with-custom-shape/) for custom shapes
+- **Custom shapes**: See [`example/src/shapes/`](./example/src/shapes/) (`StarShape`, `HeartShape`)
 - **Vanilla JavaScript**: See [`example/example-vanilla.html`](./example/example-vanilla.html) for a pure JS example
 
 Run them locally:

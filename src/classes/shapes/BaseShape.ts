@@ -37,9 +37,9 @@ export class ShadeItem {
   }
 
   draw = (
-    ctx: CanvasRenderingContext2D,
-    config: TShadeConfig,
-    offset: TPoint
+    _ctx: CanvasRenderingContext2D,
+    _config: TShadeConfig,
+    _offset: TPoint
   ) => {
     console.warn("draw method not implemented");
   };
