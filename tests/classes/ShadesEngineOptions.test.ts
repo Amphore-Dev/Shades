@@ -123,6 +123,47 @@ describe("ShadesEngine options", () => {
     });
   });
 
+  describe("fade", () => {
+    it("draws a fading frame through a buffer, at the fade opacity", () => {
+      const { engine } = createEngine({ intro: TEXT_INTRO });
+      engine.generate();
+      const ctx = (engine as any).context;
+      (engine as any).fade = {
+        ...(engine as any).fade,
+        isFading: false,
+        opacity: 0.5,
+      };
+
+      let alphaWhileCopying = 1;
+      ctx.drawImage.mockImplementation(() => {
+        alphaWhileCopying = ctx.globalAlpha;
+      });
+      (engine as any).draw();
+
+      expect(ctx.fillText).not.toHaveBeenCalled();
+      expect(ctx.fillRect).not.toHaveBeenCalled();
+      expect(ctx.drawImage).toHaveBeenCalledTimes(1);
+      expect(alphaWhileCopying).toBe(0.5);
+      expect(ctx.globalAlpha).toBe(1);
+    });
+
+    it("draws an opaque frame straight on the canvas", () => {
+      const { engine } = createEngine({ intro: TEXT_INTRO });
+      engine.generate();
+      const ctx = (engine as any).context;
+      (engine as any).fade = {
+        ...(engine as any).fade,
+        isFading: false,
+        opacity: 1,
+      };
+
+      (engine as any).draw();
+
+      expect(ctx.fillText).toHaveBeenCalled();
+      expect(ctx.drawImage).not.toHaveBeenCalled();
+    });
+  });
+
   describe("intro", () => {
     it("starts with the presets when no intro is given", () => {
       const onGenerate = jest.fn();

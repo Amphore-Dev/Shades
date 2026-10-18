@@ -144,6 +144,9 @@ export class ShadesEngine {
   // Path time (s), advanced by frame delta x speed so speed changes don't jump
   private autoMoveTime = 0;
   private lastFrameTime: number | null = null;
+  // Drawn into while fading, then copied at the fade opacity: fading the
+  // whole frame keeps overlapping layers as they are, on any background
+  private fadeBuffer: HTMLCanvasElement | null = null;
   private fade = {
     isFading: true,
     opacity: 0,
@@ -454,13 +457,8 @@ export class ShadesEngine {
 
     const start = performance.now();
 
-    const { clientWidth: width, clientHeight: height } = this.canvas;
-    this.context.clearRect(0, 0, width + 2, height + 2);
-    this.context.lineWidth = this.config.thickness;
-
-    this.items.forEach((item) => {
-      item.draw(this.context, this.config, this.offset);
-    });
+    this.stepFade();
+    this.draw();
 
     // Auto-move drives the offset unless the pointer moved recently
     const isAutoMoving =
@@ -498,32 +496,6 @@ export class ShadesEngine {
       this.offset = { ...this.targetOffset };
     }
 
-    // Fade animation
-    if (this.fade.isFading) {
-      const fadeDuration =
-        (this.options.fadeDuration ?? 1000) / (this.genCount ? 2 : 1); // Speed up fade for subsequent generations (fade duration = fadeIn + fadeOut)
-      const currentTime = performance.now();
-      const { targetOpacity, startTime, onDone } = this.fade;
-
-      // Calculate progress based on elapsed real time
-      const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / fadeDuration, 1);
-
-      // Interpolate between startOpacity and targetOpacity
-      const { startOpacity } = this.fade;
-      this.fade.opacity =
-        startOpacity + (targetOpacity - startOpacity) * progress;
-
-      // Fade completed
-      if (progress >= 1) {
-        this.fade.opacity = targetOpacity;
-        this.fade.isFading = false;
-        if (targetOpacity === 0) {
-          onDone();
-        }
-      }
-    }
-
     // With auto-move, auto-next only runs while auto-moving, counted from
     // when auto-move took over
     const autoNextFrom = this.autoMove
@@ -543,10 +515,6 @@ export class ShadesEngine {
       this.next();
     }
 
-    // Apply fade overlay
-    this.context.fillStyle = `rgba(0,0,0,${1 - this.fade.opacity})`;
-    this.context.fillRect(0, 0, width, height);
-
     const stop = performance.now();
     this.elapsedTime = stop - start;
     this.framesCount.count++;
@@ -556,6 +524,67 @@ export class ShadesEngine {
     }
 
     this.animationFrameId = requestAnimationFrame(() => this.animate());
+  }
+
+  /** Advances the fade in or out, by elapsed real time. */
+  private stepFade(): void {
+    if (!this.fade.isFading) return;
+
+    // Later generations fade out then in, each in half the duration
+    const fadeDuration =
+      (this.options.fadeDuration ?? 1000) / (this.genCount ? 2 : 1);
+    const { targetOpacity, startOpacity, startTime, onDone } = this.fade;
+    const progress = Math.min(
+      (performance.now() - startTime) / fadeDuration,
+      1
+    );
+
+    this.fade.opacity =
+      startOpacity + (targetOpacity - startOpacity) * progress;
+
+    if (progress >= 1) {
+      this.fade.opacity = targetOpacity;
+      this.fade.isFading = false;
+      if (targetOpacity === 0) onDone();
+    }
+  }
+
+  /** Draws the items, through the fade buffer while partly transparent. */
+  private draw(): void {
+    const { clientWidth: width, clientHeight: height } = this.canvas;
+    const { opacity } = this.fade;
+    const target = opacity < 1 ? this.getFadeContext() : this.context;
+
+    this.context.clearRect(0, 0, width, height);
+    if (opacity <= 0) return;
+
+    if (target !== this.context) target.clearRect(0, 0, width, height);
+    target.lineWidth = this.config.thickness;
+    this.items.forEach((item) => item.draw(target, this.config, this.offset));
+
+    if (target === this.context) return;
+    this.context.globalAlpha = opacity;
+    this.context.drawImage(target.canvas, 0, 0, width, height);
+    this.context.globalAlpha = 1;
+  }
+
+  /** The fade buffer's context, sized and scaled like the main canvas. */
+  private getFadeContext(): CanvasRenderingContext2D {
+    this.fadeBuffer ??= document.createElement("canvas");
+    const buffer = this.fadeBuffer;
+
+    if (
+      buffer.width !== this.canvas.width ||
+      buffer.height !== this.canvas.height
+    ) {
+      buffer.width = this.canvas.width;
+      buffer.height = this.canvas.height;
+    }
+
+    const context = buffer.getContext("2d") ?? this.context;
+    const dpr = window.devicePixelRatio || 1;
+    context.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return context;
   }
 
   private getCenter(): TPoint {
