@@ -7,8 +7,12 @@
 - `setItemsCount(nbrItemsX, nbrItemsY?)`: changes the item grid of the
   current generation on the fly, keeping its type, colors and sizes. Each
   count is clamped to [1, `MAX_ITEMS_NBR`] (exported, 50).
-- Example: a "Current shape" Leva folder to edit the grid and the shades
-  count of the generation on screen.
+- `setSpacing(spacingX, spacingY?)` and `setColors(colors, mainColor?)`:
+  same, for the gaps between items and their colors.
+- `spacingY` config field (presets included): vertical gap between items,
+  `spacing` otherwise.
+- Example: a "Current shape" Leva folder to edit the grid, spacing, shades
+  count and colors of the generation on screen.
 
 ### Changed
 

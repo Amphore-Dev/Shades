@@ -136,6 +136,8 @@ interface TShadesEngineOptions {
 | `setShadesCount(count)`      | Set the number of shades                                  |
 | `adjustShadesCount(delta)`   | Add to the number of shades                               |
 | `setItemsCount(x, y?)`       | Rebuild the current grid with `x` × `y` items (y: x)      |
+| `setSpacing(x, y?)`          | Gaps between the current items (y: x)                     |
+| `setColors(colors, main?)`   | Recolor the current items (main: random from `colors`)    |
 | `setAutoMove(value)`         | Enable/disable/configure auto-move                        |
 | `setTargetOffset(offset?)`   | Move parallax target (default: center)                    |
 | `setFadeDuration(duration)`  | Fade duration in ms, from the next fade                   |

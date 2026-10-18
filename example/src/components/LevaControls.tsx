@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import {
+  getRandColors,
   MAX_ITEMS_NBR,
   MAX_SHADES_NBR,
   ShadesEngine,
+  TShadeColor,
   TShadeConfig,
 } from "@amphore-dev/shades";
 import { button, folder, Leva, useControls } from "leva";
@@ -89,8 +91,30 @@ function useLevaControls() {
   }));
 }
 
+const toHex = ({ r, g, b }: TShadeColor) =>
+  "#" + [r, g, b].map((c) => c.toString(16).padStart(2, "0")).join("");
+
+/** "#ff0000, #00f" style list to colors; invalid entries are skipped. */
+const parseColors = (value: string): TShadeColor[] =>
+  value
+    .split(/[\s,]+/)
+    .map((hex) => hex.replace("#", ""))
+    .map((hex) =>
+      hex.length === 3
+        ? hex
+            .split("")
+            .map((c) => c + c)
+            .join("")
+        : hex
+    )
+    .filter((hex) => /^[0-9a-f]{6}$/i.test(hex))
+    .map((hex) => {
+      const value = parseInt(hex, 16);
+      return { r: (value >> 16) & 255, g: (value >> 8) & 255, b: value & 255 };
+    });
+
 /**
- * Grid and shades count of the generation on screen. The panel follows each
+ * Grid, spacing, shades count and colors of the generation on screen. The panel follows each
  * new generation; only edits made in the panel are sent to the engine, so
  * syncing from a generation doesn't rebuild it. Not persisted.
  */
@@ -98,6 +122,7 @@ function useCurrentShapeControls(
   engineRef: React.RefObject<ShadesEngine | null>,
   generation: TShadeConfig | null
 ) {
+  const [randomColorsTrigger, setRandomColorsTrigger] = useState(0);
   const [, setShape] = useControls("Current shape", () => ({
     nbrItemsX: {
       value: 1,
@@ -123,6 +148,31 @@ function useCurrentShapeControls(
       },
       transient: false,
     },
+    spacingX: {
+      value: 0,
+      min: 0,
+      max: 200,
+      step: 1,
+      onChange: (value: number, _path, { fromPanel }) => {
+        const engine = engineRef.current;
+        if (!fromPanel || !engine) return;
+        const { spacing, spacingY = spacing } = engine.getShadesConfig();
+        engine.setSpacing(value, spacingY);
+      },
+      transient: false,
+    },
+    spacingY: {
+      value: 0,
+      min: 0,
+      max: 200,
+      step: 1,
+      onChange: (value: number, _path, { fromPanel }) => {
+        const engine = engineRef.current;
+        if (!fromPanel || !engine) return;
+        engine.setSpacing(engine.getShadesConfig().spacing, value);
+      },
+      transient: false,
+    },
     nbrShades: {
       value: 1,
       min: 1,
@@ -133,12 +183,43 @@ function useCurrentShapeControls(
       },
       transient: false,
     },
+    colors: {
+      value: "",
+      hint: "Hex colors, comma separated",
+      onChange: (value: string, _path, { fromPanel }) => {
+        const colors = parseColors(value);
+        if (fromPanel && colors.length) engineRef.current?.setColors(colors);
+      },
+      transient: false,
+    },
+    "Random colors": button(() => setRandomColorsTrigger((n) => n + 1)),
   }));
 
   useEffect(() => {
+    const engine = engineRef.current;
+    if (randomColorsTrigger === 0 || !engine) return;
+    const colors = getRandColors(engine.getShadesConfig().type);
+    engine.setColors(colors);
+    setShape({ colors: colors.map(toHex).join(", ") });
+  }, [randomColorsTrigger, engineRef, setShape]);
+
+  useEffect(() => {
     if (!generation) return;
-    const { nbrItemsX, nbrItemsY, nbrShades } = generation;
-    setShape({ nbrItemsX, nbrItemsY, nbrShades });
+    const {
+      nbrItemsX,
+      nbrItemsY,
+      nbrShades,
+      spacing,
+      colors = [],
+    } = generation;
+    setShape({
+      nbrItemsX,
+      nbrItemsY,
+      spacingX: spacing,
+      spacingY: generation.spacingY ?? spacing,
+      nbrShades,
+      colors: colors.map(toHex).join(", "),
+    });
   }, [generation, setShape]);
 }
 

@@ -815,6 +815,92 @@ describe("ShadesEngine options", () => {
       expect(engine.getShadesConfig().nbrShades).toBe(7);
     });
   });
+  describe("spacing", () => {
+    const grid = {
+      type: "square" as const,
+      nbrItemsX: 3,
+      nbrItemsY: 2,
+      width: 10,
+      spacing: 5,
+    };
+
+    it("uses spacing on both axes unless spacingY is set", () => {
+      const { engine } = createEngine({ presets: [grid] });
+      engine.generate();
+
+      const config = engine.getShadesConfig();
+      expect(config.totalWidth).toBe(3 * 10 + 2 * 5);
+      expect(config.totalHeight).toBe(2 * 10 + 1 * 5);
+    });
+
+    it("takes a vertical gap from spacingY", () => {
+      const { engine } = createEngine({ presets: [{ ...grid, spacingY: 20 }] });
+      engine.generate();
+
+      expect(engine.getShadesConfig().totalHeight).toBe(2 * 10 + 1 * 20);
+      expect(engine.getItems()[1].position.y).toBe(10 + 20);
+    });
+
+    it("sets the gaps of the current generation", () => {
+      const onGenerate = jest.fn();
+      const { engine } = createEngine({ presets: [grid], onGenerate });
+      engine.generate();
+
+      engine.setSpacing(8, 2);
+      let config = engine.getShadesConfig();
+      expect(config.totalWidth).toBe(3 * 10 + 2 * 8);
+      expect(config.totalHeight).toBe(2 * 10 + 1 * 2);
+
+      engine.setSpacing(-4);
+      config = engine.getShadesConfig();
+      expect(config.spacing).toBe(0);
+      expect(config.spacingY).toBe(0);
+      expect(onGenerate).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("colors", () => {
+    const red: TShadeColor = { r: 255, g: 0, b: 0 };
+    const blue: TShadeColor = { r: 0, g: 0, b: 255 };
+
+    it("recolors the current generation's items", () => {
+      const onGenerate = jest.fn();
+      const { engine } = createEngine({
+        presets: [{ type: "square", nbrItemsX: 4, nbrItemsY: 4 }],
+        onGenerate,
+      });
+      engine.generate();
+
+      engine.setColors([red, blue], blue);
+
+      const config = engine.getShadesConfig();
+      expect(config.colors).toEqual([red, blue]);
+      expect(config.mainColor).toEqual(blue);
+      engine
+        .getItems()
+        .forEach((item) => expect([red, blue]).toContainEqual(item.color));
+      expect(onGenerate).toHaveBeenCalledTimes(1);
+    });
+
+    it("picks the main color among the colors when left out", () => {
+      const { engine } = createEngine({ presets: [{ type: "square" }] });
+      engine.generate();
+
+      engine.setColors([red]);
+      expect(engine.getShadesConfig().mainColor).toEqual(red);
+    });
+
+    it("ignores an empty color list", () => {
+      const { engine } = createEngine({
+        presets: [{ type: "square", colors: [red] }],
+      });
+      engine.generate();
+
+      engine.setColors([]);
+      expect(engine.getShadesConfig().colors).toEqual([red]);
+    });
+  });
+
   describe("items count", () => {
     const colors: TShadeColor[] = [{ r: 1, g: 2, b: 3 }];
 

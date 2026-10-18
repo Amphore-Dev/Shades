@@ -374,6 +374,7 @@ export class ShadesEngine {
       width,
       height,
       spacing,
+      spacingY = spacing,
       nbrItemsX,
       nbrItemsY,
       type,
@@ -418,7 +419,7 @@ export class ShadesEngine {
         items.push(
           new ShadeConstructor(
             x * width + x * spacing,
-            y * height + y * spacing,
+            y * height + y * spacingY,
             color ?? itemColor,
             shapeOptions
           )
@@ -434,7 +435,7 @@ export class ShadesEngine {
       colors,
       mainColor,
       totalWidth: nbrItemsX * width + (nbrItemsX - 1) * spacing,
-      totalHeight: nbrItemsY * height + (nbrItemsY - 1) * spacing,
+      totalHeight: nbrItemsY * height + (nbrItemsY - 1) * spacingY,
     };
 
     this.items = items;
@@ -629,6 +630,12 @@ export class ShadesEngine {
     };
   }
 
+  /** Rebuilds the current generation's items from the updated config. */
+  private rebuildItems(changes: Partial<TShadeConfig>): void {
+    this.config = { ...this.config, ...changes };
+    this.genItems(undefined, undefined, this.isIntroGeneration, false);
+  }
+
   /**
    * Sets the item grid of the current generation, each count within
    * [1, MAX_ITEMS_NBR], and rebuilds its items with the same type, colors and
@@ -638,12 +645,35 @@ export class ShadesEngine {
     const clamp = (count: number) =>
       Math.min(Math.max(Math.round(count), 1), MAX_ITEMS_NBR);
 
-    this.config = {
-      ...this.config,
+    this.rebuildItems({
       nbrItemsX: clamp(nbrItemsX),
       nbrItemsY: clamp(nbrItemsY),
-    };
-    this.genItems(undefined, undefined, this.isIntroGeneration, false);
+    });
+  }
+
+  /**
+   * Sets the gaps between the current generation's items (0 at least) and
+   * rebuilds them. `spacingY` defaults to `spacingX`.
+   */
+  public setSpacing(spacingX: number, spacingY: number = spacingX): void {
+    this.rebuildItems({
+      spacing: Math.max(spacingX, 0),
+      spacingY: Math.max(spacingY, 0),
+    });
+  }
+
+  /**
+   * Sets the colors of the current generation and rebuilds its items, each
+   * picking one at random. `mainColor`, used by the fill and rotation
+   * filters, defaults to a random one of `colors`. Ignored when empty.
+   */
+  public setColors(colors: TShadeColor[], mainColor?: TShadeColor): void {
+    if (!colors.length) return;
+
+    this.rebuildItems({
+      colors: [...colors],
+      mainColor: mainColor ?? colors[random(0, colors.length - 1, true)],
+    });
   }
 
   private handleWheel(event: WheelEvent): void {
