@@ -107,17 +107,18 @@ new ShadesEngine(canvas: HTMLCanvasElement, options?: TShadesEngineOptions)
 
 ```typescript
 interface TShadesEngineOptions {
-  shapes?: TShadeType[]; // Shape types to use for generation (ex: ["circle", "square"])
+  shapes?: TShadeType[]; // Exact pool of random generations (default: built-in shapes + customShapes)
   customShapes?: Record<string, TShadeTypeConstructor>; // Custom shape classes (ex: { "star": StarShape })
   debug?: boolean | TShadesEngineDebugOptions; // Show debug information or options
   fadeDuration?: number; // Fade duration in milliseconds (default: 1000ms)
   text?: string | string[]; // Text of text shapes (default: "SHADES")
-  font?: string; // Font family of text shapes
+  font?: string; // Font family of text shapes, loaded by your page (default: "sans-serif")
   intro?: TShadesPreset; // First generation, before the presets (default: none)
   presets?: TShadesPreset[]; // Generations played in order
   presetsEnd?: "loop" | "random"; // After the last preset (default: "random")
   interactions?: TShadesEngineInteractions; // Enable, disable or override interactions
   onGenerate?: (config: TShadeConfig, info: TShadesGenerationInfo) => void;
+  onChange?: (config: TShadeConfig) => void; // Current generation changed (wheel, pinch, set*())
   autoMove?: boolean | TShadesAutoMoveOptions; // Parallax drifts on its own
   autoNext?: number; // Next generation every N ms
 }
@@ -295,6 +296,11 @@ export class StarShape extends ShadeItem {
     this.type = "star";
   }
 
+  // Turns a bit on every draw: keeps the engine drawing every frame
+  isAnimated() {
+    return this.rotation;
+  }
+
   draw = (
     ctx: CanvasRenderingContext2D,
     config: TShadeConfig,
@@ -349,6 +355,11 @@ export class StarShape extends ShadeItem {
 }
 ```
 
+The engine skips frames where nothing changes. A shape that changes on
+every draw by itself (like the rotating star above) returns `true` from
+`isAnimated()`. A shape whose look changes later on its own, like an image
+that finishes loading, calls `this.requestRender()` at that moment.
+
 ### Using Custom Shapes
 
 ```typescript
@@ -359,6 +370,9 @@ const engine = new ShadesEngine(canvas, {
   customShapes: {
     star: StarShape, // Register your custom shape
   },
+  // Optional: the exact pool of random generations. Without it, custom
+  // shapes are picked along with the built-in ones
+  shapes: ["circle", "square", "star"],
   fadeDuration: 800,
 });
 

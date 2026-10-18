@@ -12,8 +12,12 @@
 - `setColors(colors, mainColor?)`: recolors the current generation.
 - `spacingY` config field (presets included): vertical gap between items,
   `spacing` otherwise.
+- `onChange` option: called when the current generation changes without a
+  new one (shades count from the wheel, pinch or `setShadesCount`,
+  `setItemsCount`, `setSpacing`, `setColors`).
+- `ShadeItem.isAnimated()` and `ShadeItem.requestRender()`, see Changed.
 - Example: a "Current shape" Leva folder to edit the grid, spacing, shades
-  count and colors of the generation on screen.
+  count and colors of the generation on screen; reorganized panel.
 
 ### Changed
 
@@ -22,6 +26,33 @@
   colors, sizes…). Without `intro`, the engine starts straight with the
   presets or random generations: the built-in "SHADES" text intro is gone.
   To keep it, pass the text intro shown in the README's Intro section.
+- **Breaking:** frames where nothing changes are no longer drawn. Custom
+  shapes that change on every draw by themselves (rotation…) must return
+  `true` from `isAnimated()`; those whose look changes later on their own
+  (an image loading…) call `this.requestRender()`.
+- **Breaking:** `shapes`, when set, is the exact pool of random
+  generations, custom shapes included. Without it, the pool is the built-in
+  shapes plus every custom shape, as before.
+- **Breaking:** text shapes default to `sans-serif` instead of "Remained",
+  which isn't shipped: pass `font`.
+- **Breaking:** `getRandColors(colors?)` only takes a palette, no shape type.
+- **Breaking:** removed `regenerate()` (use `next()`), the unused
+  `offsetX`/`offsetY` config fields, the "logo" special cases of random
+  generations, and `ImageShape`'s fallback to a `#Logo` element.
+- Fades now change the frame's opacity instead of painting black over it:
+  same look on a black background, correct on any other.
+- `TShadeType` autocompletes the built-in shapes; an unknown type throws a
+  clear error.
+- Each shade layer's color is computed once per item instead of on every
+  frame.
+
+### Fixed
+
+- `ImageShape` erased everything drawn before it on the canvas.
+- Setters (`setAutoMove`, `setFadeDuration`…) wrote into the options object
+  passed to the constructor.
+- `generate()` still generated when `destroy()` ran while waiting for fonts.
+- Random integers picked their bounds half as often as other values.
 
 ## 1.0.0
 
