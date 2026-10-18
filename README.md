@@ -344,6 +344,13 @@ const shades = new ShadesEngine(canvas, {
 - **Advanced Example**: Check [`example-with-custom-shape/`](./example-with-custom-shape/) for custom shapes
 - **Vanilla JavaScript**: See [`example/example-vanilla.html`](./example/example-vanilla.html) for a pure JS example
 
+Run them locally:
+
+```bash
+npm run example          # React example (Vite dev server)
+npm run example:vanilla  # Vanilla example on http://localhost:8000/example/example-vanilla.html
+```
+
 ## Building From Source
 
 ```bash

@@ -50,7 +50,8 @@
     "format:check": "prettier --check .",
     "clean": "rm -rf dist",
     "prepublishOnly": "npm run clean && npm run build",
-    "example": "npm run build && python3 -m http.server 8000"
+    "example": "npm run build && cd example && npm install && npm run dev",
+    "example:vanilla": "npm run build && echo 'Open http://localhost:8000/example/example-vanilla.html' && python3 -m http.server 8000"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
