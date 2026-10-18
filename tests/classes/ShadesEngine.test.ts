@@ -261,8 +261,8 @@ describe("ShadesEngine", () => {
 
     it("should handle shades count adjustment operations", () => {
       expect(() => {
-        engine.setShadesCount(0.5);
-        engine.setShadesCount(-0.5);
+        engine.adjustShadesCount(0.5);
+        engine.adjustShadesCount(-0.5);
       }).not.toThrow();
     });
   });
@@ -449,17 +449,17 @@ describe("ShadesEngine", () => {
 
     it("should increase shades count with positive scale", () => {
       const initialConfig = engine.getShadesConfig();
-      engine.setShadesCount(0.1);
+      engine.adjustShadesCount(0.1);
       const newConfig = engine.getShadesConfig();
 
       expect(newConfig.nbrShades).toBeGreaterThan(initialConfig.nbrShades);
     });
 
     it("should decrease shades count with negative scale", () => {
-      engine.setShadesCount(2);
+      engine.adjustShadesCount(2);
       const configAfterIncrease = engine.getShadesConfig();
 
-      engine.setShadesCount(-1);
+      engine.adjustShadesCount(-1);
       const configAfterDecrease = engine.getShadesConfig();
 
       expect(configAfterDecrease.nbrShades).toBeLessThan(
@@ -468,11 +468,11 @@ describe("ShadesEngine", () => {
     });
 
     it("should respect shades count limits", () => {
-      engine.setShadesCount(-100);
+      engine.adjustShadesCount(-100);
       const configMin = engine.getShadesConfig();
       expect(configMin.nbrShades).toBeGreaterThanOrEqual(1);
 
-      engine.setShadesCount(1000);
+      engine.adjustShadesCount(1000);
       const configMax = engine.getShadesConfig();
       expect(configMax.nbrShades).toBeLessThanOrEqual(100);
     });

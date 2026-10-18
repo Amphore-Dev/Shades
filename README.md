@@ -125,22 +125,23 @@ interface TShadesEngineOptions {
 
 ### Methods
 
-| Method                          | Description                                               |
-| ------------------------------- | --------------------------------------------------------- |
-| `generate()`                    | Generate shapes and setup                                 |
-| `start()`                       | Start animation                                           |
-| `pause()`                       | Pause animation                                           |
-| `next()`                        | Play the next generation                                  |
-| `regenerate()`                  | Alias of `next()`                                         |
-| `destroy()`                     | Cleanup and remove event listeners                        |
-| `setShadesCount(scale: number)` | Adjust number of shades                                   |
-| `setAutoMove(value)`            | Enable/disable/configure auto-move                        |
-| `setTargetOffset(offset?)`      | Move parallax target (default: center)                    |
-| `setFadeDuration(duration)`     | Fade duration in ms, from the next fade                   |
-| `setAutoNext(delay?)`           | Auto next generation every `delay` ms (off without value) |
-| `setDebug(enabled: boolean)`    | Toggle debug mode                                         |
-| `getShadesConfig()`             | Get current configuration                                 |
-| `isAnimating()`                 | Check if animation is running                             |
+| Method                       | Description                                               |
+| ---------------------------- | --------------------------------------------------------- |
+| `generate()`                 | Generate shapes and setup                                 |
+| `start()`                    | Start animation                                           |
+| `pause()`                    | Pause animation                                           |
+| `next()`                     | Play the next generation                                  |
+| `regenerate()`               | Deprecated alias of `next()`                              |
+| `destroy()`                  | Cleanup and remove event listeners                        |
+| `setShadesCount(count)`      | Set the number of shades                                  |
+| `adjustShadesCount(delta)`   | Add to the number of shades                               |
+| `setAutoMove(value)`         | Enable/disable/configure auto-move                        |
+| `setTargetOffset(offset?)`   | Move parallax target (default: center)                    |
+| `setFadeDuration(duration)`  | Fade duration in ms, from the next fade                   |
+| `setAutoNext(delay?)`        | Auto next generation every `delay` ms (off without value) |
+| `setDebug(enabled: boolean)` | Toggle debug mode                                         |
+| `getShadesConfig()`          | Get current configuration                                 |
+| `isAnimating()`              | Check if animation is running                             |
 
 ### Controls
 

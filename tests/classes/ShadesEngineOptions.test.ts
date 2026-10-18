@@ -759,4 +759,30 @@ describe("ShadesEngine options", () => {
       expect(engine.getItems()[0]).toBeInstanceOf(StarShape);
     });
   });
+  describe("shades count", () => {
+    it("sets an absolute count, clamped to [1, MAX_SHADES_NBR]", () => {
+      const { engine } = createEngine();
+
+      engine.setShadesCount(12);
+      expect(engine.getShadesConfig().nbrShades).toBe(12);
+      expect(engine.getShadesConfig().gradRatio).toBeCloseTo(100 / 12);
+
+      engine.setShadesCount(0);
+      expect(engine.getShadesConfig().nbrShades).toBe(1);
+
+      engine.setShadesCount(1000);
+      expect(engine.getShadesConfig().nbrShades).toBe(MAX_SHADES_NBR);
+    });
+
+    it("adjusts the count relatively", () => {
+      const { engine } = createEngine();
+      engine.setShadesCount(10);
+
+      engine.adjustShadesCount(2);
+      expect(engine.getShadesConfig().nbrShades).toBe(12);
+
+      engine.adjustShadesCount(-5);
+      expect(engine.getShadesConfig().nbrShades).toBe(7);
+    });
+  });
 });

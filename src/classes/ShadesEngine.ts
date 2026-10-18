@@ -609,17 +609,19 @@ export class ShadesEngine {
     this.targetOffset = this.getPointerOffset(touch1.clientX, touch1.clientY);
   }
 
-  private adjustShadesCount(scale: number): void {
-    const nbrShades = this.config.nbrShades;
-    let newValue = nbrShades + scale;
+  /** Adds `delta` (can be negative) to the shades count, within [1, MAX_SHADES_NBR]. */
+  public adjustShadesCount(delta: number): void {
+    this.setShadesCount(this.config.nbrShades + delta);
+  }
 
-    if (newValue < 1) newValue = 1;
-    else if (newValue > MAX_SHADES_NBR) newValue = MAX_SHADES_NBR;
+  /** Sets the shades count of the current generation, within [1, MAX_SHADES_NBR]. */
+  public setShadesCount(count: number): void {
+    const nbrShades = Math.min(Math.max(count, 1), MAX_SHADES_NBR);
 
     this.config = {
       ...this.config,
-      nbrShades: newValue,
-      gradRatio: 100 / newValue,
+      nbrShades,
+      gradRatio: 100 / nbrShades,
     };
   }
 
@@ -799,6 +801,7 @@ export class ShadesEngine {
     this.handleClick();
   }
 
+  /** @deprecated Use `next()`. */
   public regenerate(): void {
     this.next();
   }
@@ -813,10 +816,6 @@ export class ShadesEngine {
 
   public isAnimating(): boolean {
     return this.isPlaying;
-  }
-
-  public setShadesCount(scale: number): void {
-    this.adjustShadesCount(scale);
   }
 
   /**
