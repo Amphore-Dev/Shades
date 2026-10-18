@@ -714,6 +714,15 @@ export class ShadesEngine {
   }
 
   /**
+   * Plays the next generation every `delay` ms, counted from now; `0` or
+   * no value disables it.
+   */
+  public setAutoNext(delay?: number): void {
+    this.options.autoNext = delay;
+    this.lastGenerationTime = performance.now();
+  }
+
+  /**
    * Moves the parallax target, relative to the canvas center (defaults to
    * the center), as if the pointer moved there. Auto-move resumes after
    * `resumeDelay`.

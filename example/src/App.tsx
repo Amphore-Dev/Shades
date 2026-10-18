@@ -9,6 +9,8 @@ import { Key } from "./components/Modal/Key";
 
 function App() {
   const [isModalOpen, setIsModalOpen] = useState(true);
+  // Read by the engine's interaction handlers, which are created once
+  const isModalOpenRef = useRef(true);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<ShadesEngine | null>(null);
 
@@ -30,10 +32,12 @@ function App() {
 
   const handleModalClose = () => {
     setIsModalOpen(false);
+    isModalOpenRef.current = false;
     // Recenter the parallax, then drift on its own 5s after the last
-    // mouse/touch move
+    // mouse/touch move, and change shape every 5s
     engineRef.current?.setTargetOffset();
     engineRef.current?.setAutoMove({ resumeDelay: 5000 });
+    engineRef.current?.setAutoNext(5000);
   };
 
   useEffect(() => {
@@ -45,6 +49,15 @@ function App() {
     engineRef.current = new ShadesEngine(canvasRef.current, {
       fadeDuration: 1000,
       debug: false,
+      // No parallax while the intro modal is open
+      interactions: {
+        mouseMove: (event, _engine, defaultHandler) => {
+          if (!isModalOpenRef.current) defaultHandler(event);
+        },
+        touchMove: (event, _engine, defaultHandler) => {
+          if (!isModalOpenRef.current) defaultHandler(event);
+        },
+      },
       customShapes: {
         // Register custom shape
         // star: StarShape,

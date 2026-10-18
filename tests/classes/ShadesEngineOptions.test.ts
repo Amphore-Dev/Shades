@@ -407,6 +407,29 @@ describe("ShadesEngine options", () => {
       jest.restoreAllMocks();
     });
 
+    it("can be enabled at runtime, counted from the call", () => {
+      const { engine } = createEngine();
+      engine.generate();
+      const next = jest.spyOn(engine, "next");
+      (engine as any).fade.isFading = false;
+      (engine as any).isPlaying = true;
+
+      now = 10000;
+      engine.setAutoNext(5000);
+      now = 14000;
+      (engine as any).animate();
+      expect(next).not.toHaveBeenCalled();
+
+      now = 15001;
+      (engine as any).animate();
+      expect(next).toHaveBeenCalledTimes(1);
+
+      engine.setAutoNext();
+      now = 60000;
+      (engine as any).animate();
+      expect(next).toHaveBeenCalledTimes(1);
+    });
+
     it("plays the next generation once the delay is elapsed", () => {
       const { engine } = createEngine({ autoNext: 5000 });
       engine.generate();
