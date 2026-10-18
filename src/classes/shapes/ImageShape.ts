@@ -105,7 +105,8 @@ export class ImageShape extends ShadeItem {
 
     if (!this.hasImageLoaded || !this.image) return;
 
-    const heightRatio = (document.body.clientHeight * 0.77) / this.image.height;
+    // 77% of the canvas height (the center is half of it)
+    const heightRatio = (center.y * 2 * 0.77) / this.image.height;
 
     const width = this.image.width * heightRatio;
     const height = this.image.height * heightRatio;
@@ -128,7 +129,7 @@ export class ImageShape extends ShadeItem {
         height
       );
       ctx.globalCompositeOperation = "source-in";
-      ctx.fillRect(0, 0, document.body.clientWidth, document.body.clientHeight);
+      ctx.fillRect(0, 0, center.x * 2, center.y * 2);
       ctx.globalCompositeOperation = "source-over";
       ctx.closePath();
     }

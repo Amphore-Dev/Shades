@@ -611,4 +611,40 @@ describe("ShadesEngine options", () => {
       expect(jest.getTimerCount()).toBe(0);
     });
   });
+  describe("canvas smaller than the page", () => {
+    // Page is 800x600, canvas is 400x200 at (100, 50)
+    const createSmallCanvasEngine = (options: TShadesEngineOptions = {}) => {
+      const canvas = document.createElement("canvas");
+      Object.defineProperty(canvas, "clientWidth", { value: 400 });
+      Object.defineProperty(canvas, "clientHeight", { value: 200 });
+      canvas.getBoundingClientRect = () =>
+        ({ left: 100, top: 50, width: 400, height: 200 }) as DOMRect;
+      return new ShadesEngine(canvas, options);
+    };
+
+    it("centers every generation on the canvas", () => {
+      const engine = createSmallCanvasEngine({ intro: false });
+      engine.generate();
+      expect(engine.getShadesConfig().center).toEqual({ x: 200, y: 100 });
+
+      advance(engine);
+      expect(engine.getShadesConfig().center).toEqual({ x: 200, y: 100 });
+    });
+
+    it("sizes the intro from the canvas width", () => {
+      const engine = createSmallCanvasEngine();
+      engine.generate();
+
+      expect(engine.getShadesConfig().width).toBeCloseTo(400 / 6);
+    });
+
+    it("measures the pointer from the canvas center", () => {
+      const engine = createSmallCanvasEngine();
+
+      // Canvas center is at (300, 150) in the page
+      (engine as any).handleMouseMove({ clientX: 310, clientY: 140 });
+
+      expect((engine as any).targetOffset).toEqual({ x: 10, y: -10 });
+    });
+  });
 });

@@ -171,7 +171,7 @@ export class ShadesEngine {
     }
     this.context = context;
 
-    this.config = genConfig(this.options);
+    this.config = this.genConfig();
 
     // Initialize startTime and startOpacity for the first fade
     this.fade.startTime = performance.now();
@@ -275,8 +275,8 @@ export class ShadesEngine {
       nbrItemsY: 1,
       nbrShades: 10,
       gradRatio: 100 / 10,
-      width: document.body.clientWidth / 6,
-      height: document.body.clientWidth / 6,
+      width: this.canvas.clientWidth / 6,
+      height: this.canvas.clientWidth / 6,
     };
 
     this.genItems(
@@ -304,7 +304,7 @@ export class ShadesEngine {
 
     if (!preset) {
       this.currentPresetIndex = null;
-      this.config = genConfig(this.options);
+      this.config = this.genConfig();
       return;
     }
 
@@ -312,7 +312,7 @@ export class ShadesEngine {
     this.presetCursor++;
 
     const config: TShadeConfig = {
-      ...genConfig(this.options, preset.type),
+      ...this.genConfig(preset.type),
       ...preset,
     };
 
@@ -324,6 +324,14 @@ export class ShadesEngine {
     }
 
     this.config = config;
+  }
+
+  /** Random config, centered on the canvas (not the page). */
+  private genConfig(forcedType?: TShadeType): TShadeConfig {
+    return {
+      ...genConfig(this.options, forcedType),
+      center: this.getCenter(),
+    };
   }
 
   private getTexts(): string[] {
@@ -546,13 +554,20 @@ export class ShadesEngine {
     };
   }
 
+  /** Pointer position relative to the canvas center, wherever the canvas sits in the page. */
+  private getPointerOffset(clientX: number, clientY: number): TPoint {
+    const rect = this.canvas.getBoundingClientRect();
+    const center = this.getCenter();
+
+    return {
+      x: clientX - rect.left - center.x,
+      y: clientY - rect.top - center.y,
+    };
+  }
+
   private handleMouseMove(event: MouseEvent): void {
     this.lastPointerMoveTime = performance.now();
-    const center = this.getCenter();
-    this.targetOffset = {
-      x: event.clientX - center.x,
-      y: event.clientY - center.y,
-    };
+    this.targetOffset = this.getPointerOffset(event.clientX, event.clientY);
   }
 
   private handleTouchMove(event: TouchEvent): void {
@@ -581,12 +596,7 @@ export class ShadesEngine {
       this.lastPinchDistance = null;
     }
 
-    const center = this.getCenter();
-
-    this.targetOffset = {
-      x: touch1.clientX - center.x,
-      y: touch1.clientY - center.y,
-    };
+    this.targetOffset = this.getPointerOffset(touch1.clientX, touch1.clientY);
   }
 
   private adjustShadesCount(scale: number): void {
