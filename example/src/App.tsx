@@ -37,6 +37,8 @@ function App() {
     engineRef.current = new ShadesEngine(canvasRef.current, {
       fadeDuration: 1000,
       debug: false,
+      // Drift on its own 5s after the last mouse/touch move
+      autoMove: { resumeDelay: 5000 },
       customShapes: {
         // Register custom shape
         // star: StarShape,

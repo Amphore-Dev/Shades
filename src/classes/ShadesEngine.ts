@@ -645,6 +645,8 @@ export class ShadesEngine {
     if (this.isPlaying) return;
 
     this.isPlaying = true;
+    // Auto-move waits resumeDelay before its first drift, as after a pointer move
+    this.lastPointerMoveTime = performance.now();
     this.animate();
     this.startFPSCounter();
   }

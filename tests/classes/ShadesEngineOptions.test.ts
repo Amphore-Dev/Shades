@@ -326,6 +326,20 @@ describe("ShadesEngine options", () => {
       expect((engine as any).targetOffset).not.toEqual({ x: 100, y: 100 });
     });
 
+    it("waits resumeDelay after start before moving", () => {
+      const engine = createAutoMoveEngine({
+        autoMove: { resumeDelay: 1000 },
+      });
+
+      now = 10000;
+      engine.start();
+      frame(engine, 10500);
+      expect((engine as any).targetOffset).toEqual({ x: 0, y: 0 });
+
+      frame(engine, 11500);
+      expect((engine as any).targetOffset).not.toEqual({ x: 0, y: 0 });
+    });
+
     it("stays off when the user prefers reduced motion", () => {
       (window as any).matchMedia = jest.fn(() => ({ matches: true }));
       const engine = createAutoMoveEngine();

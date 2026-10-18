@@ -89,6 +89,8 @@
       const shades = new ShadesEngine(canvas, {
         debug: false,
         fadeDuration: 2000,
+        // Drift on its own 5s after the last mouse/touch move
+        autoMove: { resumeDelay: 5000 },
       });
 
       // Generate and start

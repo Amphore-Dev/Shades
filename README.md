@@ -203,8 +203,8 @@ new ShadesEngine(canvas, {
 
 `autoMove` makes the parallax drift on its own along a slow looping path,
 like the macOS screensaver, with a random starting point for each engine.
-Mouse and touch moves still take over; auto-move resumes `resumeDelay` ms
-after the last one. It stays off when the user prefers reduced motion.
+It starts `resumeDelay` ms after `start()`. Mouse and touch moves still take
+over; auto-move resumes `resumeDelay` ms after the last one. It stays off when the user prefers reduced motion.
 Combine it with `autoNext` for a hands-free, screensaver-like display.
 
 ```typescript
