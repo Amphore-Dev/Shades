@@ -18,41 +18,25 @@ import {
   getRandColors,
   random,
 } from "../utils/index.js";
+import {
+  createAutoMovePhases,
+  getAutoMovePoint,
+  resolveAutoMove,
+  TResolvedAutoMove,
+  TShadesAutoMoveOptions,
+} from "./engine/autoMove.js";
+import {
+  DebugOverlay,
+  TShadesEngineDebugOptions,
+} from "./engine/DebugOverlay.js";
+import {
+  InteractionBinder,
+  TShadesEngineInteractions,
+} from "./engine/interactions.js";
 
-export type TShadesEngineDebugOptions = {
-  className?: string;
-};
-
-/** Event type received by each interaction. */
-export type TShadesInteractionEvents = {
-  click: MouseEvent;
-  wheel: WheelEvent;
-  mouseMove: MouseEvent;
-  touchMove: TouchEvent;
-  /** A plain "resize" Event: the canvas is watched with a ResizeObserver when available. */
-  resize: Event;
-};
-
-/**
- * Replaces the engine's default behavior for an interaction.
- * Call `defaultHandler(event)` to keep (or wrap) the built-in behavior.
- */
-export type TShadesInteractionHandler<E extends Event> = (
-  event: E,
-  engine: ShadesEngine,
-  defaultHandler: (event: E) => void
-) => void;
-
-/** `true` (default): built-in behavior, `false`: disabled, function: custom handler. */
-export type TShadesInteraction<E extends Event> =
-  | boolean
-  | TShadesInteractionHandler<E>;
-
-export type TShadesEngineInteractions = {
-  [K in keyof TShadesInteractionEvents]?: TShadesInteraction<
-    TShadesInteractionEvents[K]
-  >;
-};
+export type * from "./engine/autoMove.js";
+export type * from "./engine/DebugOverlay.js";
+export type * from "./engine/interactions.js";
 
 export type TShadesGenerationInfo = {
   /** 0-based generation index (the intro, when given, is generation 0). */
@@ -60,30 +44,6 @@ export type TShadesGenerationInfo = {
   intro: boolean;
   /** Index of the preset used, or `null` for the intro / a random generation. */
   presetIndex: number | null;
-};
-
-/**
- * Auto-move trajectory: receives the time in seconds (already multiplied by
- * `speed`) and returns a point within [-1, 1] on each axis, scaled by
- * `amplitude`.
- */
-export type TShadesAutoMovePathFn = (time: number) => TPoint;
-
-export type TShadesAutoMovePath =
-  | "drift"
-  | "circle"
-  | "figure8"
-  | TShadesAutoMovePathFn;
-
-export type TShadesAutoMoveOptions = {
-  /** Max distance from the center, as a fraction of the canvas' smallest side. Defaults to 0.15. */
-  amplitude?: number;
-  /** Speed multiplier. Defaults to 1. */
-  speed?: number;
-  /** Delay (ms) after the last mouse/touch move before auto-move takes over again. Defaults to 3000. */
-  resumeDelay?: number;
-  /** Trajectory: "drift" (default, organic loop like the screensaver), "circle", "figure8", or a custom function. */
-  path?: TShadesAutoMovePath;
 };
 
 export type TShadesEngineOptions = {
@@ -142,7 +102,7 @@ export class ShadesEngine {
   private lastGenerationTime = 0;
 
   // Auto-move
-  private autoMove: Required<TShadesAutoMoveOptions> | null = null;
+  private autoMove: TResolvedAutoMove | null = null;
   private autoMovePhases: number[] = [];
   private lastPointerMoveTime = -Infinity;
   // Bumped by destroy() so a generate() still waiting for fonts gives up
@@ -174,17 +134,9 @@ export class ShadesEngine {
   private fpsIntervalId: ReturnType<typeof setInterval> | null = null;
   private lastPinchDistance: number | null = null; // For pinch to adjust shades on touch devices
 
-  // Event handlers attached by attachEventListeners, kept for removal
-  private listeners: {
-    target: EventTarget;
-    type: string;
-    handler: EventListener;
-  }[] = [];
-  private resizeObserver: ResizeObserver | null = null;
-
-  // Debug
-  private debug: boolean | TShadesEngineDebugOptions = false;
-  private debugContainer: HTMLPreElement | null = null;
+  // Set by attachEventListeners, cleared by destroy
+  private interactions: InteractionBinder | null = null;
+  private debugOverlay: DebugOverlay | null = null;
 
   constructor(canvas: HTMLCanvasElement, options: TShadesEngineOptions = {}) {
     this.canvas = canvas;
@@ -210,67 +162,24 @@ export class ShadesEngine {
   }
 
   private initializeAutoMove(): void {
-    const { autoMove } = this.options;
-    const prefersReducedMotion =
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-    if (!autoMove || prefersReducedMotion) {
-      this.autoMove = null;
-      return;
-    }
-
-    this.autoMove = {
-      amplitude: 0.15,
-      speed: 1,
-      resumeDelay: 3000,
-      path: "drift",
-      ...(typeof autoMove === "object" ? autoMove : {}),
-    };
-    // Random phases so each instance follows its own path, kept when
-    // reconfigured so the path doesn't jump
-    if (!this.autoMovePhases.length) {
-      this.autoMovePhases = Array.from(
-        { length: 4 },
-        () => Math.random() * Math.PI * 2
-      );
+    this.autoMove = resolveAutoMove(this.options.autoMove);
+    // Kept when reconfigured, so the path doesn't jump
+    if (this.autoMove && !this.autoMovePhases.length) {
+      this.autoMovePhases = createAutoMovePhases();
     }
   }
 
-  /** Smooth looping path (sum of slow sines, same as the screensaver). */
   private getAutoMoveOffset(): TPoint {
     const { amplitude, path } = this.autoMove!;
     const range =
       Math.min(this.canvas.clientWidth, this.canvas.clientHeight) * amplitude;
-    const t = this.autoMoveTime;
-    const point =
-      typeof path === "function" ? path(t) : this.getBuiltinPathPoint(path, t);
+    const point = getAutoMovePoint(
+      path,
+      this.autoMoveTime,
+      this.autoMovePhases
+    );
 
     return { x: point.x * range, y: point.y * range };
-  }
-
-  /** Built-in trajectories, within [-1, 1], offset by this instance's random phases. */
-  private getBuiltinPathPoint(
-    path: Exclude<TShadesAutoMovePath, TShadesAutoMovePathFn>,
-    t: number
-  ): TPoint {
-    const [p1, p2, p3, p4] = this.autoMovePhases;
-
-    if (path === "circle") {
-      const angle = t * 0.1 + p1;
-      return { x: Math.cos(angle), y: Math.sin(angle) };
-    }
-
-    if (path === "figure8") {
-      const angle = t * 0.1 + p1;
-      return { x: Math.sin(angle), y: Math.sin(angle * 2) };
-    }
-
-    // Slow sines with unrelated frequencies, same as the screensaver
-    return {
-      x: (Math.sin(t * 0.08 + p1) + Math.cos(t * 0.05 + p2) * 0.5) / 1.5,
-      y: (Math.cos(t * 0.06 + p3) + Math.sin(t * 0.04 + p4) * 0.5) / 1.5,
-    };
   }
 
   /**
@@ -799,87 +708,19 @@ export class ShadesEngine {
   }
 
   private attachEventListeners(): void {
-    if (this.listeners.length || this.resizeObserver) return;
+    if (this.interactions) return;
 
-    this.bindInteraction(this.canvas, "click", "click", () =>
-      this.handleClick()
-    );
-    this.bindInteraction(this.canvas, "wheel", "wheel", (e) =>
-      this.handleWheel(e)
-    );
-    this.bindInteraction(document, "mousemove", "mouseMove", (e) =>
+    const binder = new InteractionBinder(this, this.options.interactions);
+    binder.bind(this.canvas, "click", "click", () => this.handleClick());
+    binder.bind(this.canvas, "wheel", "wheel", (e) => this.handleWheel(e));
+    binder.bind(document, "mousemove", "mouseMove", (e) =>
       this.handleMouseMove(e)
     );
-    this.bindInteraction(document, "touchmove", "touchMove", (e) =>
+    binder.bind(document, "touchmove", "touchMove", (e) =>
       this.handleTouchMove(e)
     );
-    this.bindResize();
-  }
-
-  /**
-   * Watches the canvas itself, so container resizes (not only window ones)
-   * are caught. Falls back to the window resize event.
-   */
-  private bindResize(): void {
-    const handler = this.resolveInteraction("resize", () =>
-      this.handleResize()
-    );
-    if (!handler) return;
-
-    if (typeof ResizeObserver === "undefined") {
-      window.addEventListener("resize", handler);
-      this.listeners.push({ target: window, type: "resize", handler });
-      return;
-    }
-
-    this.resizeObserver = new ResizeObserver(() =>
-      handler(new Event("resize"))
-    );
-    this.resizeObserver.observe(this.canvas);
-  }
-
-  /**
-   * Attaches the default handler of an interaction, a user override, or
-   * nothing, depending on `options.interactions[key]`.
-   */
-  private bindInteraction<K extends keyof TShadesInteractionEvents>(
-    target: EventTarget,
-    type: string,
-    key: K,
-    defaultHandler: (event: TShadesInteractionEvents[K]) => void
-  ): void {
-    const handler = this.resolveInteraction(key, defaultHandler);
-    if (!handler) return;
-
-    target.addEventListener(type, handler);
-    this.listeners.push({ target, type, handler });
-  }
-
-  /** The handler to run for an interaction: default, user override, or none if disabled. */
-  private resolveInteraction<K extends keyof TShadesInteractionEvents>(
-    key: K,
-    defaultHandler: (event: TShadesInteractionEvents[K]) => void
-  ): EventListener | null {
-    const interaction = this.options.interactions?.[key] ?? true;
-    if (interaction === false) return null;
-
-    return typeof interaction === "function"
-      ? (event: Event) =>
-          interaction(
-            event as TShadesInteractionEvents[K],
-            this,
-            defaultHandler
-          )
-      : (event: Event) => defaultHandler(event as TShadesInteractionEvents[K]);
-  }
-
-  private detachEventListeners(): void {
-    this.listeners.forEach(({ target, type, handler }) =>
-      target.removeEventListener(type, handler)
-    );
-    this.listeners = [];
-    this.resizeObserver?.disconnect();
-    this.resizeObserver = null;
+    binder.bindResize(this.canvas, () => this.handleResize());
+    this.interactions = binder;
   }
 
   // Public API methods for external interaction
@@ -908,13 +749,10 @@ export class ShadesEngine {
   public destroy(): void {
     this.lifecycle++;
     this.pause();
-    this.detachEventListeners();
-
-    // Clean up debug element
-    if (this.debugContainer) {
-      this.debugContainer.remove();
-      this.debugContainer = null;
-    }
+    this.interactions?.detach();
+    this.interactions = null;
+    this.debugOverlay?.remove();
+    this.debugOverlay = null;
 
     // Reset state
     this.items = [];
@@ -979,29 +817,8 @@ export class ShadesEngine {
   // Debug methods
 
   private initializeDebug(): void {
-    if (this.options.debug && !this.debugContainer) {
-      const debugElement = document.createElement("pre");
-      debugElement.className =
-        typeof this.options.debug === "object" && this.options.debug.className
-          ? this.options.debug.className
-          : "shades-debug";
-      debugElement.style.cssText = `
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        z-index: 10;
-        color: white;
-        text-align: left;
-        font-family: monospace;
-        font-size: 12px;
-        background: rgba(0,0,0,0.5);
-        padding: 10px;
-        pointer-events: none;
-      `;
-
-      // Insert before canvas in DOM
-      this.canvas.parentNode?.insertBefore(debugElement, this.canvas);
-      this.debugContainer = debugElement;
+    if (this.options.debug && !this.debugOverlay) {
+      this.debugOverlay = new DebugOverlay(this.canvas, this.options.debug);
     }
   }
 
@@ -1024,18 +841,15 @@ export class ShadesEngine {
   }
 
   private updateDebug(): void {
-    const debugElement = this.debugContainer;
-    if (debugElement) {
-      debugElement.innerHTML = `
-Width: ${this.canvas.width}
-Height: ${this.canvas.height}
-IsPlaying: ${this.isPlaying}
-Elapsed Time: ${this.elapsedTime.toFixed(2)}ms
-FPS: ${this.framesCount.fps}
-Items: ${this.items.length}
-Generation: ${this.genCount}
-      `.trim();
-    }
+    this.debugOverlay?.update({
+      Width: this.canvas.width,
+      Height: this.canvas.height,
+      IsPlaying: this.isPlaying,
+      "Elapsed Time": `${this.elapsedTime.toFixed(2)}ms`,
+      FPS: this.framesCount.fps,
+      Items: this.items.length,
+      Generation: this.genCount,
+    });
   }
 
   public getDebugInfo(): { genCount: number; config: TShadeConfig } {
@@ -1050,8 +864,8 @@ Generation: ${this.genCount}
     if (value) {
       this.initializeDebug();
     } else {
-      this.debugContainer?.remove();
-      this.debugContainer = null;
+      this.debugOverlay?.remove();
+      this.debugOverlay = null;
     }
   }
 }
