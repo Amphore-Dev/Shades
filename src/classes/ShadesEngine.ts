@@ -22,7 +22,8 @@ export type TShadesInteractionEvents = {
   wheel: WheelEvent;
   mouseMove: MouseEvent;
   touchMove: TouchEvent;
-  resize: UIEvent;
+  /** A plain "resize" Event: the canvas is watched with a ResizeObserver when available. */
+  resize: Event;
 };
 
 /**
@@ -156,6 +157,7 @@ export class ShadesEngine {
     type: string;
     handler: EventListener;
   }[] = [];
+  private resizeObserver: ResizeObserver | null = null;
 
   // Debug
   private debug: boolean | TShadesEngineDebugOptions = false;
@@ -246,9 +248,16 @@ export class ShadesEngine {
     };
   }
 
+  /**
+   * Sizes the backing store to the device pixel ratio (sharp on HiDPI
+   * screens) and scales the context so drawing stays in CSS pixels.
+   */
   private setupCanvas(): void {
-    this.canvas.width = this.canvas.clientWidth;
-    this.canvas.height = this.canvas.clientHeight;
+    const dpr = window.devicePixelRatio || 1;
+
+    this.canvas.width = Math.round(this.canvas.clientWidth * dpr);
+    this.canvas.height = Math.round(this.canvas.clientHeight * dpr);
+    this.context.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
   public generate(): void {
@@ -444,7 +453,8 @@ export class ShadesEngine {
 
     const start = performance.now();
 
-    this.context.clearRect(0, 0, this.canvas.width + 2, this.canvas.height + 2);
+    const { clientWidth: width, clientHeight: height } = this.canvas;
+    this.context.clearRect(0, 0, width + 2, height + 2);
     this.context.lineWidth = this.config.thickness;
 
     this.items.forEach((item) => {
@@ -534,7 +544,7 @@ export class ShadesEngine {
 
     // Apply fade overlay
     this.context.fillStyle = `rgba(0,0,0,${1 - this.fade.opacity})`;
-    this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    this.context.fillRect(0, 0, width, height);
 
     const stop = performance.now();
     this.elapsedTime = stop - start;
@@ -649,8 +659,7 @@ export class ShadesEngine {
   }
 
   private handleResize(): void {
-    this.canvas.width = this.canvas.clientWidth;
-    this.canvas.height = this.canvas.clientHeight;
+    this.setupCanvas();
 
     this.config = {
       ...this.config,
@@ -661,7 +670,7 @@ export class ShadesEngine {
   }
 
   private attachEventListeners(): void {
-    if (this.listeners.length) return;
+    if (this.listeners.length || this.resizeObserver) return;
 
     this.bindInteraction(this.canvas, "click", "click", () =>
       this.handleClick()
@@ -675,7 +684,29 @@ export class ShadesEngine {
     this.bindInteraction(document, "touchmove", "touchMove", (e) =>
       this.handleTouchMove(e)
     );
-    this.bindInteraction(window, "resize", "resize", () => this.handleResize());
+    this.bindResize();
+  }
+
+  /**
+   * Watches the canvas itself, so container resizes (not only window ones)
+   * are caught. Falls back to the window resize event.
+   */
+  private bindResize(): void {
+    const handler = this.resolveInteraction("resize", () =>
+      this.handleResize()
+    );
+    if (!handler) return;
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", handler);
+      this.listeners.push({ target: window, type: "resize", handler });
+      return;
+    }
+
+    this.resizeObserver = new ResizeObserver(() =>
+      handler(new Event("resize"))
+    );
+    this.resizeObserver.observe(this.canvas);
   }
 
   /**
@@ -688,22 +719,29 @@ export class ShadesEngine {
     key: K,
     defaultHandler: (event: TShadesInteractionEvents[K]) => void
   ): void {
-    const interaction = this.options.interactions?.[key] ?? true;
-    if (interaction === false) return;
-
-    const handler =
-      typeof interaction === "function"
-        ? (event: Event) =>
-            interaction(
-              event as TShadesInteractionEvents[K],
-              this,
-              defaultHandler
-            )
-        : (event: Event) =>
-            defaultHandler(event as TShadesInteractionEvents[K]);
+    const handler = this.resolveInteraction(key, defaultHandler);
+    if (!handler) return;
 
     target.addEventListener(type, handler);
     this.listeners.push({ target, type, handler });
+  }
+
+  /** The handler to run for an interaction: default, user override, or none if disabled. */
+  private resolveInteraction<K extends keyof TShadesInteractionEvents>(
+    key: K,
+    defaultHandler: (event: TShadesInteractionEvents[K]) => void
+  ): EventListener | null {
+    const interaction = this.options.interactions?.[key] ?? true;
+    if (interaction === false) return null;
+
+    return typeof interaction === "function"
+      ? (event: Event) =>
+          interaction(
+            event as TShadesInteractionEvents[K],
+            this,
+            defaultHandler
+          )
+      : (event: Event) => defaultHandler(event as TShadesInteractionEvents[K]);
   }
 
   private detachEventListeners(): void {
@@ -711,6 +749,8 @@ export class ShadesEngine {
       target.removeEventListener(type, handler)
     );
     this.listeners = [];
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
   }
 
   // Public API methods for external interaction

@@ -179,10 +179,11 @@ describe("ShadesEngine", () => {
         "wheel",
         expect.any(Function)
       );
-      expect(window.addEventListener).toHaveBeenCalledWith(
-        "resize",
-        expect.any(Function)
-      );
+      // The canvas itself is watched for resizes
+      const observer = (global.ResizeObserver as jest.Mock).mock.results.at(
+        -1
+      )?.value;
+      expect(observer.observe).toHaveBeenCalledWith(canvas);
     });
 
     it("should work with custom fade duration", () => {

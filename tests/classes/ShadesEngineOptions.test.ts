@@ -647,4 +647,86 @@ describe("ShadesEngine options", () => {
       expect((engine as any).targetOffset).toEqual({ x: 10, y: -10 });
     });
   });
+  describe("canvas sizing", () => {
+    const originalDpr = window.devicePixelRatio;
+    const OriginalResizeObserver = global.ResizeObserver;
+
+    const createSizedCanvas = () => {
+      const canvas = document.createElement("canvas");
+      Object.defineProperty(canvas, "clientWidth", {
+        value: 400,
+        configurable: true,
+      });
+      Object.defineProperty(canvas, "clientHeight", { value: 200 });
+      return canvas;
+    };
+
+    afterEach(() => {
+      Object.defineProperty(window, "devicePixelRatio", {
+        value: originalDpr,
+        configurable: true,
+      });
+      global.ResizeObserver = OriginalResizeObserver;
+    });
+
+    it("scales the backing store to the device pixel ratio", () => {
+      Object.defineProperty(window, "devicePixelRatio", {
+        value: 2,
+        configurable: true,
+      });
+      const canvas = createSizedCanvas();
+      const engine = new ShadesEngine(canvas);
+      const context = (engine as any).context;
+
+      expect(canvas.width).toBe(800);
+      expect(canvas.height).toBe(400);
+      expect(context.setTransform).toHaveBeenCalledWith(2, 0, 0, 2, 0, 0);
+    });
+
+    it("resizes when the observed canvas changes size", () => {
+      let onResize: () => void = () => {};
+      const observe = jest.fn();
+      const disconnect = jest.fn();
+      global.ResizeObserver = jest.fn((callback: () => void) => {
+        onResize = callback;
+        return { observe, disconnect, unobserve: jest.fn() };
+      }) as any;
+
+      const canvas = createSizedCanvas();
+      const engine = new ShadesEngine(canvas);
+      engine.generate();
+      expect(observe).toHaveBeenCalledWith(canvas);
+
+      Object.defineProperty(canvas, "clientWidth", { value: 1000 });
+      onResize();
+      expect(engine.getShadesConfig().center.x).toBe(500);
+
+      engine.destroy();
+      expect(disconnect).toHaveBeenCalled();
+    });
+
+    it("falls back to the window resize event without ResizeObserver", () => {
+      (global as any).ResizeObserver = undefined;
+      const addEventListener = jest.spyOn(window, "addEventListener");
+
+      const engine = new ShadesEngine(createSizedCanvas());
+      engine.generate();
+
+      expect(addEventListener).toHaveBeenCalledWith(
+        "resize",
+        expect.any(Function)
+      );
+      addEventListener.mockRestore();
+    });
+
+    it("doesn't watch resizes when the resize interaction is disabled", () => {
+      const engine = new ShadesEngine(createSizedCanvas(), {
+        interactions: { resize: false },
+      });
+      (global.ResizeObserver as jest.Mock).mockClear();
+      engine.generate();
+
+      expect(global.ResizeObserver).not.toHaveBeenCalled();
+    });
+  });
 });

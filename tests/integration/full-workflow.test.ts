@@ -40,6 +40,7 @@ describe("Integration Tests", () => {
     mockContext = {
       canvas: canvas,
       clearRect: jest.fn(),
+      setTransform: jest.fn(),
       beginPath: jest.fn(),
       closePath: jest.fn(),
       arc: jest.fn(),
