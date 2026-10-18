@@ -577,6 +577,40 @@ describe("ShadesEngine options", () => {
     });
   });
 
+  describe("onChange", () => {
+    it("reports changes of the current generation, not new ones", () => {
+      const onChange = jest.fn();
+      const onGenerate = jest.fn();
+      const { canvas, engine } = createEngine({
+        presets: [{ type: "square", nbrShades: 10 }],
+        onChange,
+        onGenerate,
+      });
+      engine.generate();
+      expect(onChange).not.toHaveBeenCalled();
+
+      canvas.dispatchEvent(new WheelEvent("wheel", { deltaY: -1 }));
+      expect(onChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({ nbrShades: 10.1 })
+      );
+
+      engine.setItemsCount(2, 3);
+      engine.setSpacing(7);
+      engine.setColors([{ r: 1, g: 2, b: 3 }]);
+
+      expect(onChange).toHaveBeenCalledTimes(4);
+      expect(onChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          nbrItemsX: 2,
+          nbrItemsY: 3,
+          spacing: 7,
+          colors: [{ r: 1, g: 2, b: 3 }],
+        })
+      );
+      expect(onGenerate).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe("idle frames", () => {
     beforeEach(() => {
       global.requestAnimationFrame = jest.fn(() => 1);

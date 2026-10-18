@@ -137,9 +137,10 @@ const parseColors = (value: string): TShadeColor[] =>
     });
 
 /**
- * Grid, spacing, shades count and colors of the generation on screen. The panel follows each
- * new generation; only edits made in the panel are sent to the engine, so
- * syncing from a generation doesn't rebuild it. Not persisted.
+ * Grid, spacing, shades count and colors of the generation on screen. The
+ * panel follows each new generation and each change (wheel included); only
+ * edits made in the panel are sent to the engine, so syncing from the engine
+ * doesn't rebuild the generation. Not persisted.
  */
 function useCurrentShapeControls(
   engineRef: React.RefObject<ShadesEngine | null>,

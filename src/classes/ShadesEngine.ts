@@ -106,6 +106,12 @@ export type TShadesEngineOptions = {
   /** Called after each generation. */
   onGenerate?: (config: TShadeConfig, info: TShadesGenerationInfo) => void;
   /**
+   * Called when the current generation changes without a new one starting:
+   * shades count (wheel, pinch, setShadesCount), setItemsCount, setSpacing,
+   * setColors.
+   */
+  onChange?: (config: TShadeConfig) => void;
+  /**
    * Drifts the parallax offset on its own, like the screensaver. Mouse/touch
    * moves still take over, and auto-move resumes after `resumeDelay`.
    * Disabled when the user prefers reduced motion.
@@ -680,12 +686,14 @@ export class ShadesEngine {
       gradRatio: 100 / nbrShades,
     };
     this.needsRender = true;
+    this.options.onChange?.(this.getShadesConfig());
   }
 
   /** Rebuilds the current generation's items from the updated config. */
   private rebuildItems(changes: Partial<TShadeConfig>): void {
     this.config = { ...this.config, ...changes };
     this.genItems(this.isIntroGeneration, false);
+    this.options.onChange?.(this.getShadesConfig());
   }
 
   /**
@@ -726,6 +734,7 @@ export class ShadesEngine {
       );
     });
     this.needsRender = true;
+    this.options.onChange?.(this.getShadesConfig());
   }
 
   /**

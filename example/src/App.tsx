@@ -54,7 +54,10 @@ function App() {
       fadeDuration: 3000,
       debug: false,
       font: "Remained",
+      // Mirrored in the Leva panel: new generations, and changes made with
+      // the wheel or the panel itself
       onGenerate: (config) => setGeneration(config),
+      onChange: (config) => setGeneration(config),
       // Single text item sized from the canvas, as before intro became a preset
       intro: {
         type: "text",
