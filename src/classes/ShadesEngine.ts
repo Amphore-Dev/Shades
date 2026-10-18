@@ -82,7 +82,7 @@ export type TShadesEngineOptions = {
   shapes?: TShadeType[]; // Allows specifying a list of shape types to use for each generation (e.g., ["circle", "square"])
   customShapes?: Record<string, TShadeTypeConstructor>; // Allows providing custom shape classes (e.g., { "myShape": MyCustomShape })
   debug?: boolean | TShadesEngineDebugOptions;
-  fadeDuration?: number; // Fade duration in milliseconds (default: 500ms)
+  fadeDuration?: number; // Fade duration in milliseconds (default: 1000ms)
   /** Text drawn by text shapes. With an array, each item picks a random string and the intro uses the first one. Defaults to "SHADES". */
   text?: string | string[];
   /** Font family used by text shapes. */
@@ -775,6 +775,11 @@ export class ShadesEngine {
     this.options.autoMove = value;
     this.initializeAutoMove();
     this.lastPointerMoveTime = performance.now();
+  }
+
+  /** Sets the fade duration (ms), applied from the next fade. */
+  public setFadeDuration(duration: number): void {
+    this.options.fadeDuration = duration;
   }
 
   /**

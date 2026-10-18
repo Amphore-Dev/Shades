@@ -562,4 +562,29 @@ describe("ShadesEngine options", () => {
       expect(parent.querySelectorAll("pre")).toHaveLength(0);
     });
   });
+  describe("setFadeDuration", () => {
+    it("applies the new duration to the next fade", () => {
+      let now = 0;
+      jest.spyOn(performance, "now").mockImplementation(() => now);
+      global.requestAnimationFrame = jest.fn(() => 1);
+      const { engine } = createEngine({ fadeDuration: 1000 });
+      engine.generate();
+      (engine as any).isPlaying = true;
+
+      engine.setFadeDuration(4000);
+      // Fades after the first generation last half the duration (out + in)
+      (engine as any).fade = {
+        ...(engine as any).fade,
+        isFading: true,
+        startOpacity: 0,
+        targetOpacity: 1,
+        startTime: 0,
+      };
+      now = 1000;
+      (engine as any).animate();
+
+      expect((engine as any).fade.opacity).toBeCloseTo(0.5);
+      jest.restoreAllMocks();
+    });
+  });
 });

@@ -110,7 +110,7 @@ interface TShadesEngineOptions {
   shapes?: TShadeType[]; // Shape types to use for generation (ex: ["circle", "square"])
   customShapes?: Record<string, TShadeTypeConstructor>; // Custom shape classes (ex: { "star": StarShape })
   debug?: boolean | TShadesEngineDebugOptions; // Show debug information or options
-  fadeDuration?: number; // Fade duration in milliseconds (default: 500ms)
+  fadeDuration?: number; // Fade duration in milliseconds (default: 1000ms)
   text?: string | string[]; // Text of text shapes (default: "SHADES")
   font?: string; // Font family of text shapes
   intro?: boolean; // Show the text intro first (default: true)
@@ -136,6 +136,7 @@ interface TShadesEngineOptions {
 | `setShadesCount(scale: number)` | Adjust number of shades                                   |
 | `setAutoMove(value)`            | Enable/disable/configure auto-move                        |
 | `setTargetOffset(offset?)`      | Move parallax target (default: center)                    |
+| `setFadeDuration(duration)`     | Fade duration in ms, from the next fade                   |
 | `setAutoNext(delay?)`           | Auto next generation every `delay` ms (off without value) |
 | `setDebug(enabled: boolean)`    | Toggle debug mode                                         |
 | `getShadesConfig()`             | Get current configuration                                 |

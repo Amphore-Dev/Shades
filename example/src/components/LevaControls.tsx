@@ -16,6 +16,7 @@ function loadSavedControls(): Record<string, unknown> {
 const DEFAULTS = {
   isPlaying: true,
   debug: false,
+  fadeDuration: 1000,
   autoMove: true,
   path: "drift",
   amplitude: 0.15,
@@ -33,6 +34,12 @@ function useLevaControls() {
     State: folder({
       isPlaying: initial.isPlaying,
       debug: initial.debug,
+      fadeDuration: {
+        value: initial.fadeDuration,
+        min: 100,
+        max: 5000,
+        step: 100,
+      },
     }),
     "Auto move": folder(
       {
@@ -89,6 +96,7 @@ function useLevaEffects(
   const {
     isPlaying,
     debug,
+    fadeDuration,
     autoMove,
     path,
     amplitude,
@@ -134,6 +142,10 @@ function useLevaEffects(
   useEffect(() => {
     engineRef.current?.setDebug(debug);
   }, [debug, isModalOpen, engineRef]);
+
+  useEffect(() => {
+    engineRef.current?.setFadeDuration(fadeDuration);
+  }, [fadeDuration, isModalOpen, engineRef]);
 
   useEffect(() => {
     const engine = engineRef.current;
