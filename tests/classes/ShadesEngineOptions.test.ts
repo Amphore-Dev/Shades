@@ -297,8 +297,8 @@ describe("ShadesEngine options", () => {
 
     it("drives the target offset within the amplitude", () => {
       const engine = createAutoMoveEngine();
-      // 0.15 of the smallest side, times 1.5 for both sine terms
-      const maxRange = 600 * 0.15 * 1.5;
+      // 0.15 of the smallest side
+      const maxRange = 600 * 0.15;
 
       [1000, 20000, 60000].forEach((time) => {
         frame(engine, time);
@@ -310,6 +310,45 @@ describe("ShadesEngine options", () => {
       const first = { ...(engine as any).targetOffset };
       frame(engine, 90000);
       expect((engine as any).targetOffset).not.toEqual(first);
+    });
+
+    it.each(["drift", "circle", "figure8"] as const)(
+      "keeps the %s path within amplitude and speed",
+      (path) => {
+        const engine = createAutoMoveEngine({
+          autoMove: { path, amplitude: 0.5, speed: 3 },
+        });
+        const maxRange = 600 * 0.5;
+
+        for (let time = 0; time < 120000; time += 7000) {
+          frame(engine, time);
+          const { x, y } = (engine as any).targetOffset;
+          expect(Math.abs(x)).toBeLessThanOrEqual(maxRange + 1e-9);
+          expect(Math.abs(y)).toBeLessThanOrEqual(maxRange + 1e-9);
+        }
+      }
+    );
+
+    it("follows the circle path at a constant distance", () => {
+      const engine = createAutoMoveEngine({ autoMove: { path: "circle" } });
+
+      [10000, 40000].forEach((time) => {
+        frame(engine, time);
+        const { x, y } = (engine as any).targetOffset;
+        expect(Math.hypot(x, y)).toBeCloseTo(600 * 0.15);
+      });
+    });
+
+    it("calls a custom path with the time scaled by speed", () => {
+      const path = jest.fn(() => ({ x: 1, y: -0.5 }));
+      const engine = createAutoMoveEngine({
+        autoMove: { path, speed: 2, amplitude: 0.1 },
+      });
+
+      frame(engine, 5000);
+
+      expect(path).toHaveBeenCalledWith(10);
+      expect((engine as any).targetOffset).toEqual({ x: 60, y: -30 });
     });
 
     it("lets the pointer take over, then resumes after resumeDelay", () => {

@@ -228,12 +228,22 @@ auto-move took over, so they never change under the user's pointer.
 ```typescript
 new ShadesEngine(canvas, {
   autoMove: {
-    amplitude: 0.15, // fraction of the canvas' smallest side
-    speed: 1,
-    resumeDelay: 3000,
+    amplitude: 0.15, // max distance from the center, fraction of the smallest side
+    speed: 1, // speed multiplier
+    resumeDelay: 3000, // ms after the last pointer move
+    path: "drift", // "drift" | "circle" | "figure8" | (time) => ({ x, y })
   },
   autoNext: 15000, // next generation every 15s
 });
+```
+
+A custom `path` receives the time in seconds (multiplied by `speed`) and
+returns a point within [-1, 1] on each axis, scaled by `amplitude`:
+
+```typescript
+autoMove: {
+  path: (t) => ({ x: Math.sin(t * 0.2), y: 0 }), // horizontal sway
+}
 ```
 
 ## Custom Shapes

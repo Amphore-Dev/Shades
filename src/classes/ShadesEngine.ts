@@ -54,13 +54,28 @@ export type TShadesGenerationInfo = {
   presetIndex: number | null;
 };
 
+/**
+ * Auto-move trajectory: receives the time in seconds (already multiplied by
+ * `speed`) and returns a point within [-1, 1] on each axis, scaled by
+ * `amplitude`.
+ */
+export type TShadesAutoMovePathFn = (time: number) => TPoint;
+
+export type TShadesAutoMovePath =
+  | "drift"
+  | "circle"
+  | "figure8"
+  | TShadesAutoMovePathFn;
+
 export type TShadesAutoMoveOptions = {
-  /** Movement range, as a fraction of the canvas' smallest side. Defaults to 0.15. */
+  /** Max distance from the center, as a fraction of the canvas' smallest side. Defaults to 0.15. */
   amplitude?: number;
   /** Speed multiplier. Defaults to 1. */
   speed?: number;
   /** Delay (ms) after the last mouse/touch move before auto-move takes over again. Defaults to 3000. */
   resumeDelay?: number;
+  /** Trajectory: "drift" (default, organic loop like the screensaver), "circle", "figure8", or a custom function. */
+  path?: TShadesAutoMovePath;
 };
 
 export type TShadesEngineOptions = {
@@ -178,6 +193,7 @@ export class ShadesEngine {
       amplitude: 0.15,
       speed: 1,
       resumeDelay: 3000,
+      path: "drift",
       ...(typeof autoMove === "object" ? autoMove : {}),
     };
     // Random phases so each instance follows its own path
@@ -189,17 +205,37 @@ export class ShadesEngine {
 
   /** Smooth looping path (sum of slow sines, same as the screensaver). */
   private getAutoMoveOffset(time: number): TPoint {
-    const { amplitude, speed } = this.autoMove!;
-    const [p1, p2, p3, p4] = this.autoMovePhases;
+    const { amplitude, speed, path } = this.autoMove!;
     const range =
       Math.min(this.canvas.clientWidth, this.canvas.clientHeight) * amplitude;
     const t = (time / 1000) * speed;
+    const point =
+      typeof path === "function" ? path(t) : this.getBuiltinPathPoint(path, t);
 
+    return { x: point.x * range, y: point.y * range };
+  }
+
+  /** Built-in trajectories, within [-1, 1], offset by this instance's random phases. */
+  private getBuiltinPathPoint(
+    path: Exclude<TShadesAutoMovePath, TShadesAutoMovePathFn>,
+    t: number
+  ): TPoint {
+    const [p1, p2, p3, p4] = this.autoMovePhases;
+
+    if (path === "circle") {
+      const angle = t * 0.1 + p1;
+      return { x: Math.cos(angle), y: Math.sin(angle) };
+    }
+
+    if (path === "figure8") {
+      const angle = t * 0.1 + p1;
+      return { x: Math.sin(angle), y: Math.sin(angle * 2) };
+    }
+
+    // Slow sines with unrelated frequencies, same as the screensaver
     return {
-      x:
-        Math.sin(t * 0.08 + p1) * range + Math.cos(t * 0.05 + p2) * range * 0.5,
-      y:
-        Math.cos(t * 0.06 + p3) * range + Math.sin(t * 0.04 + p4) * range * 0.5,
+      x: (Math.sin(t * 0.08 + p1) + Math.cos(t * 0.05 + p2) * 0.5) / 1.5,
+      y: (Math.cos(t * 0.06 + p3) + Math.sin(t * 0.04 + p4) * 0.5) / 1.5,
     };
   }
 
