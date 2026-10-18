@@ -158,6 +158,8 @@ Each control can be disabled or overridden, see [Interactions](#interactions).
 
 `text` replaces the text drawn by text shapes. With an array, the intro uses
 the first string and every item of a text generation picks one at random.
+`font` must be declared by your page (`@font-face`); the engine loads it
+before the first generation.
 
 ```typescript
 new ShadesEngine(canvas, {

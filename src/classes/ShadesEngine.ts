@@ -197,15 +197,22 @@ export class ShadesEngine {
   public generate(): void {
     this.attachEventListeners();
 
-    // Wait for fonts, so text shapes measure with the right one
-    if (document.fonts) {
-      const lifecycle = this.lifecycle;
-      document.fonts.ready.then(() => {
-        if (lifecycle === this.lifecycle) this.initDefaultGeneration();
-      });
-    } else {
+    if (!document.fonts) {
       this.initDefaultGeneration();
+      return;
     }
+
+    // Wait for fonts, so text shapes draw with the right one. The `font`
+    // option is loaded explicitly: a font only used on a canvas is never
+    // downloaded otherwise, and `ready` doesn't wait for it
+    const { font } = this.options;
+    const lifecycle = this.lifecycle;
+    Promise.all([
+      font ? document.fonts.load(`1em ${font}`).catch(() => undefined) : null,
+      document.fonts.ready,
+    ]).then(() => {
+      if (lifecycle === this.lifecycle) this.initDefaultGeneration();
+    });
   }
 
   private initDefaultGeneration(): void {
@@ -720,6 +727,13 @@ export class ShadesEngine {
       this.handleTouchMove(e)
     );
     binder.bindResize(this.canvas, () => this.handleResize());
+    // A font arriving later (custom shapes' ones…) changes how text draws:
+    // redraw, as still frames are skipped
+    if (typeof document.fonts?.addEventListener === "function") {
+      binder.listen(document.fonts, "loadingdone", () => {
+        this.needsRender = true;
+      });
+    }
     this.interactions = binder;
   }
 

@@ -123,6 +123,69 @@ describe("ShadesEngine options", () => {
     });
   });
 
+  describe("fonts", () => {
+    afterEach(() => {
+      (document as any).fonts = undefined;
+    });
+
+    it("loads the font option before the first generation", async () => {
+      let fontLoaded: () => void = () => {};
+      const load = jest.fn(
+        () => new Promise<void>((resolve) => (fontLoaded = resolve))
+      );
+      (document as any).fonts = { ready: Promise.resolve(), load };
+      const onGenerate = jest.fn();
+      const { engine } = createEngine({ font: "Remained", onGenerate });
+
+      engine.generate();
+      await Promise.resolve();
+      expect(load).toHaveBeenCalledWith("1em Remained");
+      expect(onGenerate).not.toHaveBeenCalled();
+
+      fontLoaded();
+      await new Promise((resolve) => setTimeout(resolve));
+      expect(onGenerate).toHaveBeenCalledTimes(1);
+    });
+
+    it("still generates when the font fails to load", async () => {
+      (document as any).fonts = {
+        ready: Promise.resolve(),
+        load: jest.fn(() => Promise.reject(new Error("404"))),
+      };
+      const onGenerate = jest.fn();
+      const { engine } = createEngine({ font: "Missing", onGenerate });
+
+      engine.generate();
+      await new Promise((resolve) => setTimeout(resolve));
+
+      expect(onGenerate).toHaveBeenCalledTimes(1);
+    });
+
+    it("redraws when a font finishes loading", async () => {
+      const fonts = new EventTarget() as any;
+      fonts.ready = Promise.resolve();
+      (document as any).fonts = fonts;
+      global.requestAnimationFrame = jest.fn(() => 1);
+      const { engine } = createEngine({ presets: [{ type: "square" }] });
+      engine.generate();
+      await new Promise((resolve) => setTimeout(resolve));
+
+      const internal = engine as any;
+      internal.fade = { ...internal.fade, isFading: false, opacity: 1 };
+      internal.isPlaying = true;
+      const draw = jest.spyOn(internal, "draw");
+      internal.animate();
+      internal.animate();
+      expect(draw).toHaveBeenCalledTimes(1);
+
+      fonts.dispatchEvent(new Event("loadingdone"));
+      internal.animate();
+      expect(draw).toHaveBeenCalledTimes(2);
+
+      engine.destroy();
+    });
+  });
+
   describe("fade", () => {
     it("draws a fading frame through a buffer, at the fade opacity", () => {
       const { engine } = createEngine({ intro: TEXT_INTRO });
