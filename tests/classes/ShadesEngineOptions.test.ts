@@ -92,6 +92,37 @@ describe("ShadesEngine options", () => {
     });
   });
 
+  describe("lifecycle", () => {
+    it("never writes into the options object it was given", () => {
+      const options: TShadesEngineOptions = { fadeDuration: 500 };
+      const { engine } = createEngine(options);
+
+      engine.setFadeDuration(2000);
+      engine.setAutoNext(1000);
+      engine.setAutoMove(true);
+
+      expect(options).toEqual({ fadeDuration: 500 });
+    });
+
+    it("doesn't generate when destroyed while waiting for fonts", async () => {
+      let fontsReady: () => void = () => {};
+      (document as any).fonts = {
+        ready: new Promise<void>((resolve) => (fontsReady = resolve)),
+      };
+      const onGenerate = jest.fn();
+      const { engine } = createEngine({ onGenerate });
+
+      engine.generate();
+      engine.destroy();
+      fontsReady();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(onGenerate).not.toHaveBeenCalled();
+      (document as any).fonts = undefined;
+    });
+  });
+
   describe("intro", () => {
     it("starts with the presets when no intro is given", () => {
       const onGenerate = jest.fn();

@@ -132,6 +132,8 @@ export class ShadesEngine {
   private autoMove: Required<TShadesAutoMoveOptions> | null = null;
   private autoMovePhases: number[] = [];
   private lastPointerMoveTime = -Infinity;
+  // Bumped by destroy() so a generate() still waiting for fonts gives up
+  private lifecycle = 0;
   // Path time (s), advanced by frame delta x speed so speed changes don't jump
   private autoMoveTime = 0;
   private lastFrameTime: number | null = null;
@@ -166,7 +168,9 @@ export class ShadesEngine {
 
   constructor(canvas: HTMLCanvasElement, options: TShadesEngineOptions = {}) {
     this.canvas = canvas;
-    this.options = options;
+    // Own copy: setters (setAutoMove, setFadeDuration…) must not write into
+    // the object the caller passed
+    this.options = { ...options };
 
     const context = canvas.getContext("2d");
     if (!context) {
@@ -264,9 +268,12 @@ export class ShadesEngine {
   public generate(): void {
     this.attachEventListeners();
 
-    // Wait for fonts to be ready (comme dans le code original)
+    // Wait for fonts, so text shapes measure with the right one
     if (document.fonts) {
-      document.fonts.ready.then(() => this.initDefaultGeneration());
+      const lifecycle = this.lifecycle;
+      document.fonts.ready.then(() => {
+        if (lifecycle === this.lifecycle) this.initDefaultGeneration();
+      });
     } else {
       this.initDefaultGeneration();
     }
@@ -844,6 +851,7 @@ export class ShadesEngine {
   }
 
   public destroy(): void {
+    this.lifecycle++;
     this.pause();
     this.detachEventListeners();
 
