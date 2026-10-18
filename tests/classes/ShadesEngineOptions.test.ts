@@ -3,6 +3,8 @@ import {
   TShadesEngineOptions,
 } from "../../src/classes/ShadesEngine";
 import { TextShape } from "../../src/classes/shapes/TextShape";
+import { ShadeItem } from "../../src/classes/shapes/BaseShape";
+import { TShadeColor, TShapeOptions } from "../../src/types";
 import { MAX_SHADES_NBR } from "../../src/constants";
 
 // Without document.fonts, generate() runs the first generation synchronously
@@ -727,6 +729,34 @@ describe("ShadesEngine options", () => {
       engine.generate();
 
       expect(global.ResizeObserver).not.toHaveBeenCalled();
+    });
+  });
+  describe("customShapes typing", () => {
+    // Fails to compile if custom shapes aren't accepted by the option type
+    class StarShape extends ShadeItem {
+      points: number;
+
+      constructor(
+        x: number,
+        y: number,
+        color: TShadeColor,
+        options: TShapeOptions & { points?: number } = {}
+      ) {
+        super(x, y, color, options);
+        this.type = "star";
+        this.points = options.points ?? 5;
+      }
+    }
+
+    it("accepts a class extending ShadeItem", () => {
+      const { engine } = createEngine({
+        intro: false,
+        customShapes: { star: StarShape },
+        presets: [{ type: "star", nbrItemsX: 1, nbrItemsY: 1 }],
+      });
+      engine.generate();
+
+      expect(engine.getItems()[0]).toBeInstanceOf(StarShape);
     });
   });
 });

@@ -1,4 +1,4 @@
-import { TShadeColor } from "@/types/TShadeItem.js";
+import { TShadeColor } from "../types/TShadeItem.js";
 
 export const HOME_COLORS: TShadeColor[] = [
   { r: 80, g: 178, b: 192 },

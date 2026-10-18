@@ -1,4 +1,4 @@
-import { SHADES_TYPES } from "@/constants/CShades.js";
+import { SHADES_TYPES } from "../constants/CShades.js";
 import {
   CircleShape,
   ImageShape,
@@ -7,16 +7,23 @@ import {
   TextShape,
   TriangleShape,
 } from "../classes/index.js";
+import type { ShadeItem } from "../classes/shapes/BaseShape.js";
+import { TShadeColor } from "./TShadeItem.js";
+import { TShapeOptions } from "./TShapeOptions.js";
 
 export type TShadeType = (typeof SHADES_TYPES)[number] | string;
 
-export type TShadeTypeConstructor =
-  | typeof SquaredShape
-  | typeof CircleShape
-  | typeof TextShape
-  | typeof SpiralShape
-  | typeof ImageShape
-  | typeof TriangleShape;
+/**
+ * Any shape class: built-in ones and custom shapes extending ShadeItem.
+ * `options` holds the shape options plus extra ones a shape may read
+ * (`text`, `font`, `imageSource`...).
+ */
+export type TShadeTypeConstructor = new (
+  x: number,
+  y: number,
+  color: TShadeColor,
+  options?: TShapeOptions & { [key: string]: unknown }
+) => ShadeItem;
 
 type IShadeTypeConstructors = {
   [key in TShadeType]: TShadeTypeConstructor;
@@ -31,4 +38,4 @@ export const SHADES_TYPES_CONSTRUCTORS_LIST: IShadeTypeConstructors = {
   triangle: TriangleShape,
 };
 
-export type ShadesTypesCodstructors = typeof SHADES_TYPES_CONSTRUCTORS_LIST;
+export type TShadesTypesConstructors = typeof SHADES_TYPES_CONSTRUCTORS_LIST;
