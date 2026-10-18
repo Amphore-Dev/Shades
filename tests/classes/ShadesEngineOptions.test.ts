@@ -5,7 +5,7 @@ import {
 import { TextShape } from "../../src/classes/shapes/TextShape";
 import { ShadeItem } from "../../src/classes/shapes/BaseShape";
 import { TShadeColor, TShadesPreset, TShapeOptions } from "../../src/types";
-import { MAX_SHADES_NBR } from "../../src/constants";
+import { MAX_ITEMS_NBR, MAX_SHADES_NBR } from "../../src/constants";
 
 // Without document.fonts, generate() runs the first generation synchronously
 const originalFonts = document.fonts;
@@ -813,6 +813,62 @@ describe("ShadesEngine options", () => {
 
       engine.adjustShadesCount(-5);
       expect(engine.getShadesConfig().nbrShades).toBe(7);
+    });
+  });
+  describe("items count", () => {
+    const colors: TShadeColor[] = [{ r: 1, g: 2, b: 3 }];
+
+    it("rebuilds the current generation's grid, keeping its config", () => {
+      const onGenerate = jest.fn();
+      const { engine } = createEngine({
+        presets: [{ type: "circle", nbrItemsX: 2, nbrItemsY: 2, colors }],
+        onGenerate,
+      });
+      engine.generate();
+
+      engine.setItemsCount(4, 3);
+
+      const config = engine.getShadesConfig();
+      expect(config.nbrItemsX).toBe(4);
+      expect(config.nbrItemsY).toBe(3);
+      expect(config.type).toBe("circle");
+      expect(engine.getItems()).toHaveLength(12);
+      engine
+        .getItems()
+        .forEach((item) => expect(item.color).toEqual(colors[0]));
+      // Same generation: not reported again
+      expect(onGenerate).toHaveBeenCalledTimes(1);
+    });
+
+    it("uses the X count for Y when Y is left out", () => {
+      const { engine } = createEngine({ presets: [{ type: "square" }] });
+      engine.generate();
+
+      engine.setItemsCount(5);
+      expect(engine.getItems()).toHaveLength(25);
+    });
+
+    it("clamps each count to [1, MAX_ITEMS_NBR]", () => {
+      const { engine } = createEngine({ presets: [{ type: "square" }] });
+      engine.generate();
+
+      engine.setItemsCount(0, 1000);
+      const config = engine.getShadesConfig();
+      expect(config.nbrItemsX).toBe(1);
+      expect(config.nbrItemsY).toBe(MAX_ITEMS_NBR);
+    });
+
+    it("keeps the intro text when rebuilding the intro", () => {
+      const { engine } = createEngine({
+        text: ["FIRST", "SECOND"],
+        intro: TEXT_INTRO,
+      });
+      engine.generate();
+
+      engine.setItemsCount(3, 1);
+      const items = engine.getItems() as TextShape[];
+      expect(items).toHaveLength(3);
+      items.forEach((item) => expect(item.text).toBe("FIRST"));
     });
   });
 });

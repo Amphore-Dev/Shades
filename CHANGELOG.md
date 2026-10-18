@@ -2,6 +2,14 @@
 
 ## 2.0.0
 
+### Added
+
+- `setItemsCount(nbrItemsX, nbrItemsY?)`: changes the item grid of the
+  current generation on the fly, keeping its type, colors and sizes. Each
+  count is clamped to [1, `MAX_ITEMS_NBR`] (exported, 50).
+- Example: a "Current shape" Leva folder to edit the grid and the shades
+  count of the generation on screen.
+
 ### Changed
 
 - **Breaking:** `intro` is now a preset (`TShadesPreset`) played as the first

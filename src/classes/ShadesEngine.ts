@@ -9,7 +9,7 @@ import {
   TShadesPreset,
   TShapeOptions,
 } from "../types/index.js";
-import { MAX_SHADES_NBR } from "../constants/index.js";
+import { MAX_ITEMS_NBR, MAX_SHADES_NBR } from "../constants/index.js";
 import { genConfig, getRandColors, random } from "../utils/index.js";
 
 export type TShadesEngineDebugOptions = {
@@ -125,6 +125,7 @@ export class ShadesEngine {
   private genCount = 0;
   private presetCursor = 0;
   private currentPresetIndex: number | null = null;
+  private isIntroGeneration = false;
   private lastGenerationTime = 0;
 
   // Auto-move
@@ -357,10 +358,16 @@ export class ShadesEngine {
     return { ...config };
   }
 
+  /**
+   * Builds the items from the current config. A new generation (the
+   * default) is counted and reported to onGenerate; a rebuild of the current
+   * one (`newGeneration: false`) is not.
+   */
   private genItems(
     constructor?: TShadeTypeConstructor,
     forceColor?: TShadeColor | TShadeColor[],
-    intro = false
+    intro = false,
+    newGeneration = true
   ): void {
     const config = this.getConfig();
     const {
@@ -431,6 +438,9 @@ export class ShadesEngine {
     };
 
     this.items = items;
+    if (!newGeneration) return;
+
+    this.isIntroGeneration = intro;
     this.lastGenerationTime = performance.now();
 
     this.options.onGenerate?.(this.getShadesConfig(), {
@@ -617,6 +627,23 @@ export class ShadesEngine {
       nbrShades,
       gradRatio: 100 / nbrShades,
     };
+  }
+
+  /**
+   * Sets the item grid of the current generation, each count within
+   * [1, MAX_ITEMS_NBR], and rebuilds its items with the same type, colors and
+   * sizes. `nbrItemsY` defaults to `nbrItemsX`.
+   */
+  public setItemsCount(nbrItemsX: number, nbrItemsY: number = nbrItemsX): void {
+    const clamp = (count: number) =>
+      Math.min(Math.max(Math.round(count), 1), MAX_ITEMS_NBR);
+
+    this.config = {
+      ...this.config,
+      nbrItemsX: clamp(nbrItemsX),
+      nbrItemsY: clamp(nbrItemsY),
+    };
+    this.genItems(undefined, undefined, this.isIntroGeneration, false);
   }
 
   private handleWheel(event: WheelEvent): void {

@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import { ShadesEngine } from "@amphore-dev/shades";
+import {
+  MAX_ITEMS_NBR,
+  MAX_SHADES_NBR,
+  ShadesEngine,
+  TShadeConfig,
+} from "@amphore-dev/shades";
 import { button, folder, Leva, useControls } from "leva";
 
 const STORAGE_KEY = "shades-leva-controls";
@@ -82,6 +87,59 @@ function useLevaControls() {
       { collapsed: false }
     ),
   }));
+}
+
+/**
+ * Grid and shades count of the generation on screen. The panel follows each
+ * new generation; only edits made in the panel are sent to the engine, so
+ * syncing from a generation doesn't rebuild it. Not persisted.
+ */
+function useCurrentShapeControls(
+  engineRef: React.RefObject<ShadesEngine | null>,
+  generation: TShadeConfig | null
+) {
+  const [, setShape] = useControls("Current shape", () => ({
+    nbrItemsX: {
+      value: 1,
+      min: 1,
+      max: MAX_ITEMS_NBR,
+      step: 1,
+      onChange: (value: number, _path, { fromPanel }) => {
+        const engine = engineRef.current;
+        if (!fromPanel || !engine) return;
+        engine.setItemsCount(value, engine.getShadesConfig().nbrItemsY);
+      },
+      transient: false,
+    },
+    nbrItemsY: {
+      value: 1,
+      min: 1,
+      max: MAX_ITEMS_NBR,
+      step: 1,
+      onChange: (value: number, _path, { fromPanel }) => {
+        const engine = engineRef.current;
+        if (!fromPanel || !engine) return;
+        engine.setItemsCount(engine.getShadesConfig().nbrItemsX, value);
+      },
+      transient: false,
+    },
+    nbrShades: {
+      value: 1,
+      min: 1,
+      max: MAX_SHADES_NBR,
+      step: 1,
+      onChange: (value: number, _path, { fromPanel }) => {
+        if (fromPanel) engineRef.current?.setShadesCount(value);
+      },
+      transient: false,
+    },
+  }));
+
+  useEffect(() => {
+    if (!generation) return;
+    const { nbrItemsX, nbrItemsY, nbrShades } = generation;
+    setShape({ nbrItemsX, nbrItemsY, nbrShades });
+  }, [generation, setShape]);
 }
 
 /**
@@ -174,11 +232,14 @@ function useLevaEffects(
 export function LevaControls({
   engineRef,
   isModalOpen,
+  generation,
 }: {
   engineRef: React.RefObject<ShadesEngine | null>;
   isModalOpen: boolean;
+  generation: TShadeConfig | null;
 }) {
   useLevaEffects(engineRef, isModalOpen);
+  useCurrentShapeControls(engineRef, generation);
 
   return <Leva hidden={isModalOpen} />;
 }
