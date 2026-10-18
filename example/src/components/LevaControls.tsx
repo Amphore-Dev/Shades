@@ -35,58 +35,79 @@ const DEFAULTS = {
 
 const initial = { ...DEFAULTS, ...loadSavedControls() };
 
+// Panel layout, top to bottom: play/next at the root, then the generation on
+// screen, transitions, auto move and settings (folders sorted by `order`)
+const ORDER = {
+  root: -1,
+  currentShape: 1,
+  transitions: 2,
+  autoMove: 3,
+  settings: 4,
+};
+
 function useLevaControls() {
   // Function form: also returns `set`, used by the reset button
   return useControls(() => ({
-    State: folder({
-      isPlaying: initial.isPlaying,
-      debug: initial.debug,
-      fadeDuration: {
-        value: initial.fadeDuration,
-        min: 100,
-        max: 5000,
-        step: 100,
+    isPlaying: {
+      value: initial.isPlaying,
+      label: "Playing",
+      order: ORDER.root,
+    },
+    Transitions: folder(
+      {
+        fadeDuration: {
+          value: initial.fadeDuration,
+          min: 100,
+          max: 5000,
+          step: 100,
+          label: "Fade (ms)",
+        },
+        autoNext: { value: initial.autoNext, label: "Auto next" },
+        autoNextDelay: {
+          value: initial.autoNextDelay,
+          min: 1000,
+          max: 60000,
+          step: 500,
+          label: "Every (ms)",
+        },
       },
-    }),
+      { order: ORDER.transitions }
+    ),
     "Auto move": folder(
       {
-        autoMove: initial.autoMove,
+        autoMove: { value: initial.autoMove, label: "Enabled" },
         path: {
           value: initial.path,
           options: ["drift", "circle", "figure8"],
+          label: "Path",
         },
         amplitude: {
           value: initial.amplitude,
           min: 0,
           max: 0.5,
           step: 0.01,
+          label: "Amplitude",
         },
         speed: {
           value: initial.speed,
           min: 0.1,
           max: 10,
           step: 0.1,
+          label: "Speed",
         },
         resumeDelay: {
           value: initial.resumeDelay,
           min: 0,
           max: 20000,
           step: 500,
+          label: "Resume (ms)",
         },
       },
-      { collapsed: false }
+      { order: ORDER.autoMove, collapsed: true }
     ),
-    "Auto next": folder(
-      {
-        autoNext: initial.autoNext,
-        autoNextDelay: {
-          value: initial.autoNextDelay,
-          min: 1000,
-          max: 60000,
-          step: 500,
-        },
-      },
-      { collapsed: false }
+    Settings: folder(
+      { debug: { value: initial.debug, label: "Debug" } },
+      { order: ORDER.settings, collapsed: true }
     ),
   }));
 }
@@ -123,77 +144,87 @@ function useCurrentShapeControls(
   generation: TShadeConfig | null
 ) {
   const [randomColorsTrigger, setRandomColorsTrigger] = useState(0);
-  const [, setShape] = useControls("Current shape", () => ({
-    nbrItemsX: {
-      value: 1,
-      min: 1,
-      max: MAX_ITEMS_NBR,
-      step: 1,
-      onChange: (value: number, _path, { fromPanel }) => {
-        const engine = engineRef.current;
-        if (!fromPanel || !engine) return;
-        engine.setItemsCount(value, engine.getShadesConfig().nbrItemsY);
+  const [, setShape] = useControls(
+    "Current shape",
+    () => ({
+      nbrItemsX: {
+        label: "Items X",
+        value: 1,
+        min: 1,
+        max: MAX_ITEMS_NBR,
+        step: 1,
+        onChange: (value: number, _path, { fromPanel }) => {
+          const engine = engineRef.current;
+          if (!fromPanel || !engine) return;
+          engine.setItemsCount(value, engine.getShadesConfig().nbrItemsY);
+        },
+        transient: false,
       },
-      transient: false,
-    },
-    nbrItemsY: {
-      value: 1,
-      min: 1,
-      max: MAX_ITEMS_NBR,
-      step: 1,
-      onChange: (value: number, _path, { fromPanel }) => {
-        const engine = engineRef.current;
-        if (!fromPanel || !engine) return;
-        engine.setItemsCount(engine.getShadesConfig().nbrItemsX, value);
+      nbrItemsY: {
+        label: "Items Y",
+        value: 1,
+        min: 1,
+        max: MAX_ITEMS_NBR,
+        step: 1,
+        onChange: (value: number, _path, { fromPanel }) => {
+          const engine = engineRef.current;
+          if (!fromPanel || !engine) return;
+          engine.setItemsCount(engine.getShadesConfig().nbrItemsX, value);
+        },
+        transient: false,
       },
-      transient: false,
-    },
-    spacingX: {
-      value: 0,
-      min: 0,
-      max: 200,
-      step: 1,
-      onChange: (value: number, _path, { fromPanel }) => {
-        const engine = engineRef.current;
-        if (!fromPanel || !engine) return;
-        const { spacing, spacingY = spacing } = engine.getShadesConfig();
-        engine.setSpacing(value, spacingY);
+      spacingX: {
+        label: "Spacing X",
+        value: 0,
+        min: 0,
+        max: 200,
+        step: 1,
+        onChange: (value: number, _path, { fromPanel }) => {
+          const engine = engineRef.current;
+          if (!fromPanel || !engine) return;
+          const { spacing, spacingY = spacing } = engine.getShadesConfig();
+          engine.setSpacing(value, spacingY);
+        },
+        transient: false,
       },
-      transient: false,
-    },
-    spacingY: {
-      value: 0,
-      min: 0,
-      max: 200,
-      step: 1,
-      onChange: (value: number, _path, { fromPanel }) => {
-        const engine = engineRef.current;
-        if (!fromPanel || !engine) return;
-        engine.setSpacing(engine.getShadesConfig().spacing, value);
+      spacingY: {
+        label: "Spacing Y",
+        value: 0,
+        min: 0,
+        max: 200,
+        step: 1,
+        onChange: (value: number, _path, { fromPanel }) => {
+          const engine = engineRef.current;
+          if (!fromPanel || !engine) return;
+          engine.setSpacing(engine.getShadesConfig().spacing, value);
+        },
+        transient: false,
       },
-      transient: false,
-    },
-    nbrShades: {
-      value: 1,
-      min: 1,
-      max: MAX_SHADES_NBR,
-      step: 1,
-      onChange: (value: number, _path, { fromPanel }) => {
-        if (fromPanel) engineRef.current?.setShadesCount(value);
+      nbrShades: {
+        label: "Shades",
+        value: 1,
+        min: 1,
+        max: MAX_SHADES_NBR,
+        step: 1,
+        onChange: (value: number, _path, { fromPanel }) => {
+          if (fromPanel) engineRef.current?.setShadesCount(value);
+        },
+        transient: false,
       },
-      transient: false,
-    },
-    colors: {
-      value: "",
-      hint: "Hex colors, comma separated",
-      onChange: (value: string, _path, { fromPanel }) => {
-        const colors = parseColors(value);
-        if (fromPanel && colors.length) engineRef.current?.setColors(colors);
+      colors: {
+        label: "Colors",
+        value: "",
+        hint: "Hex colors, comma separated",
+        onChange: (value: string, _path, { fromPanel }) => {
+          const colors = parseColors(value);
+          if (fromPanel && colors.length) engineRef.current?.setColors(colors);
+        },
+        transient: false,
       },
-      transient: false,
-    },
-    "Random colors": button(() => setRandomColorsTrigger((n) => n + 1)),
-  }));
+      "Random colors": button(() => setRandomColorsTrigger((n) => n + 1)),
+    }),
+    { order: ORDER.currentShape }
+  );
 
   useEffect(() => {
     const engine = engineRef.current;
@@ -249,6 +280,8 @@ function useLevaEffects(
   const [resetTrigger, setResetTrigger] = useState(0);
   useControls({
     "Next shape": button(() => setNextTrigger((n) => n + 1)),
+  });
+  useControls("Settings", {
     "Reset defaults": button(() => setResetTrigger((n) => n + 1)),
   });
   useEffect(() => {
@@ -322,5 +355,11 @@ export function LevaControls({
   useLevaEffects(engineRef, isModalOpen);
   useCurrentShapeControls(engineRef, generation);
 
-  return <Leva hidden={isModalOpen} />;
+  return (
+    <Leva
+      hidden={isModalOpen}
+      // Wider panel and number fields, so 5-digit delays aren't cut
+      theme={{ sizes: { rootWidth: "320px", numberInputMinWidth: "56px" } }}
+    />
+  );
 }
