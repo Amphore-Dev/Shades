@@ -54,6 +54,15 @@ export type TShadesGenerationInfo = {
   presetIndex: number | null;
 };
 
+export type TShadesAutoMoveOptions = {
+  /** Movement range, as a fraction of the canvas' smallest side. Defaults to 0.15. */
+  amplitude?: number;
+  /** Speed multiplier. Defaults to 1. */
+  speed?: number;
+  /** Delay (ms) after the last mouse/touch move before auto-move takes over again. Defaults to 3000. */
+  resumeDelay?: number;
+};
+
 export type TShadesEngineOptions = {
   shapes?: TShadeType[]; // Allows specifying a list of shape types to use for each generation (e.g., ["circle", "square"])
   customShapes?: Record<string, TShadeTypeConstructor>; // Allows providing custom shape classes (e.g., { "myShape": MyCustomShape })
@@ -73,6 +82,14 @@ export type TShadesEngineOptions = {
   interactions?: TShadesEngineInteractions;
   /** Called after each generation. */
   onGenerate?: (config: TShadeConfig, info: TShadesGenerationInfo) => void;
+  /**
+   * Drifts the parallax offset on its own, like the screensaver. Mouse/touch
+   * moves still take over, and auto-move resumes after `resumeDelay`.
+   * Disabled when the user prefers reduced motion.
+   */
+  autoMove?: boolean | TShadesAutoMoveOptions;
+  /** Plays the next generation automatically every `autoNext` ms. */
+  autoNext?: number;
 };
 
 export class ShadesEngine {
@@ -88,6 +105,12 @@ export class ShadesEngine {
   private genCount = 0;
   private presetCursor = 0;
   private currentPresetIndex: number | null = null;
+  private lastGenerationTime = 0;
+
+  // Auto-move
+  private autoMove: Required<TShadesAutoMoveOptions> | null = null;
+  private autoMovePhases: number[] = [];
+  private lastPointerMoveTime = -Infinity;
   private fade = {
     isFading: true,
     opacity: 0,
@@ -133,6 +156,47 @@ export class ShadesEngine {
 
     this.setupCanvas();
     this.initializeDebug();
+    this.initializeAutoMove();
+  }
+
+  private initializeAutoMove(): void {
+    const { autoMove } = this.options;
+    const prefersReducedMotion =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (!autoMove || prefersReducedMotion) {
+      this.autoMove = null;
+      return;
+    }
+
+    this.autoMove = {
+      amplitude: 0.15,
+      speed: 1,
+      resumeDelay: 3000,
+      ...(typeof autoMove === "object" ? autoMove : {}),
+    };
+    // Random phases so each instance follows its own path
+    this.autoMovePhases = Array.from(
+      { length: 4 },
+      () => Math.random() * Math.PI * 2
+    );
+  }
+
+  /** Smooth looping path (sum of slow sines, same as the screensaver). */
+  private getAutoMoveOffset(time: number): TPoint {
+    const { amplitude, speed } = this.autoMove!;
+    const [p1, p2, p3, p4] = this.autoMovePhases;
+    const range =
+      Math.min(this.canvas.clientWidth, this.canvas.clientHeight) * amplitude;
+    const t = (time / 1000) * speed;
+
+    return {
+      x:
+        Math.sin(t * 0.08 + p1) * range + Math.cos(t * 0.05 + p2) * range * 0.5,
+      y:
+        Math.cos(t * 0.06 + p3) * range + Math.sin(t * 0.04 + p4) * range * 0.5,
+    };
   }
 
   private setupCanvas(): void {
@@ -309,6 +373,7 @@ export class ShadesEngine {
     };
 
     this.items = items;
+    this.lastGenerationTime = performance.now();
 
     this.options.onGenerate?.(this.getShadesConfig(), {
       generation: this.genCount,
@@ -331,8 +396,17 @@ export class ShadesEngine {
       item.draw(this.context, this.config, this.offset);
     });
 
-    // Smooth offset animation
-    const step = 0.1;
+    // Auto-move drives the offset unless the pointer moved recently
+    const isAutoMoving =
+      !!this.autoMove &&
+      start - this.lastPointerMoveTime > this.autoMove.resumeDelay;
+
+    if (isAutoMoving) {
+      this.targetOffset = this.getAutoMoveOffset(start);
+    }
+
+    // Smooth offset animation, slower while auto-moving for a softer drift
+    const step = isAutoMoving ? 0.02 : 0.1;
     this.offset = {
       x: (this.targetOffset.x - this.offset.x) * step + this.offset.x,
       y: (this.targetOffset.y - this.offset.y) * step + this.offset.y,
@@ -377,6 +451,15 @@ export class ShadesEngine {
       }
     }
 
+    if (
+      this.options.autoNext &&
+      this.genCount > 0 &&
+      !this.fade.isFading &&
+      start - this.lastGenerationTime > this.options.autoNext
+    ) {
+      this.next();
+    }
+
     // Apply fade overlay
     this.context.fillStyle = `rgba(0,0,0,${1 - this.fade.opacity})`;
     this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -400,6 +483,7 @@ export class ShadesEngine {
   }
 
   private handleMouseMove(event: MouseEvent): void {
+    this.lastPointerMoveTime = performance.now();
     const center = this.getCenter();
     this.targetOffset = {
       x: event.clientX - center.x,
@@ -413,6 +497,8 @@ export class ShadesEngine {
     if (!touch1) {
       return;
     }
+
+    this.lastPointerMoveTime = performance.now();
 
     if (touch1 && touch2) {
       const currentDistance = Math.hypot(

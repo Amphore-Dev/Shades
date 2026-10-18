@@ -118,6 +118,8 @@ interface TShadesEngineOptions {
   presetsEnd?: "loop" | "random"; // After the last preset (default: "random")
   interactions?: TShadesEngineInteractions; // Enable, disable or override interactions
   onGenerate?: (config: TShadeConfig, info: TShadesGenerationInfo) => void;
+  autoMove?: boolean | TShadesAutoMoveOptions; // Parallax drifts on its own
+  autoNext?: number; // Next generation every N ms
 }
 ```
 
@@ -194,6 +196,25 @@ new ShadesEngine(canvas, {
       if (event.shiftKey) defaultHandler(event);
     },
   },
+});
+```
+
+## Auto-move
+
+`autoMove` makes the parallax drift on its own along a slow looping path,
+like the macOS screensaver, with a random starting point for each engine.
+Mouse and touch moves still take over; auto-move resumes `resumeDelay` ms
+after the last one. It stays off when the user prefers reduced motion.
+Combine it with `autoNext` for a hands-free, screensaver-like display.
+
+```typescript
+new ShadesEngine(canvas, {
+  autoMove: {
+    amplitude: 0.15, // fraction of the canvas' smallest side
+    speed: 1,
+    resumeDelay: 3000,
+  },
+  autoNext: 15000, // next generation every 15s
 });
 ```
 

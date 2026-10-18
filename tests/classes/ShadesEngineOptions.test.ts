@@ -268,4 +268,107 @@ describe("ShadesEngine options", () => {
       ]);
     });
   });
+  describe("autoMove", () => {
+    let now = 0;
+
+    const frame = (engine: ShadesEngine, time: number) => {
+      now = time;
+      (engine as any).isPlaying = true;
+      (engine as any).animate();
+    };
+
+    beforeEach(() => {
+      now = 0;
+      jest.spyOn(performance, "now").mockImplementation(() => now);
+      global.requestAnimationFrame = jest.fn(() => 1);
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+      delete (window as any).matchMedia;
+    });
+
+    const createAutoMoveEngine = (options: TShadesEngineOptions = {}) => {
+      const { canvas, engine } = createEngine({ autoMove: true, ...options });
+      Object.defineProperty(canvas, "clientWidth", { value: 800 });
+      Object.defineProperty(canvas, "clientHeight", { value: 600 });
+      return engine;
+    };
+
+    it("drives the target offset within the amplitude", () => {
+      const engine = createAutoMoveEngine();
+      // 0.15 of the smallest side, times 1.5 for both sine terms
+      const maxRange = 600 * 0.15 * 1.5;
+
+      [1000, 20000, 60000].forEach((time) => {
+        frame(engine, time);
+        const { x, y } = (engine as any).targetOffset;
+        expect(Math.abs(x)).toBeLessThanOrEqual(maxRange);
+        expect(Math.abs(y)).toBeLessThanOrEqual(maxRange);
+      });
+
+      const first = { ...(engine as any).targetOffset };
+      frame(engine, 90000);
+      expect((engine as any).targetOffset).not.toEqual(first);
+    });
+
+    it("lets the pointer take over, then resumes after resumeDelay", () => {
+      const engine = createAutoMoveEngine({
+        autoMove: { resumeDelay: 1000 },
+      });
+
+      now = 5000;
+      (engine as any).handleMouseMove({ clientX: 500, clientY: 400 });
+      frame(engine, 5500);
+      expect((engine as any).targetOffset).toEqual({ x: 100, y: 100 });
+
+      frame(engine, 6500);
+      expect((engine as any).targetOffset).not.toEqual({ x: 100, y: 100 });
+    });
+
+    it("stays off when the user prefers reduced motion", () => {
+      (window as any).matchMedia = jest.fn(() => ({ matches: true }));
+      const engine = createAutoMoveEngine();
+
+      frame(engine, 20000);
+      expect((engine as any).targetOffset).toEqual({ x: 0, y: 0 });
+    });
+
+    it("stays off by default", () => {
+      const { engine } = createEngine();
+
+      frame(engine, 20000);
+      expect((engine as any).targetOffset).toEqual({ x: 0, y: 0 });
+    });
+  });
+
+  describe("autoNext", () => {
+    let now = 0;
+
+    beforeEach(() => {
+      now = 0;
+      jest.spyOn(performance, "now").mockImplementation(() => now);
+      global.requestAnimationFrame = jest.fn(() => 1);
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("plays the next generation once the delay is elapsed", () => {
+      const { engine } = createEngine({ autoNext: 5000 });
+      engine.generate();
+      const next = jest.spyOn(engine, "next");
+      (engine as any).fade.isFading = false;
+      (engine as any).isPlaying = true;
+
+      now = 4000;
+      (engine as any).animate();
+      expect(next).not.toHaveBeenCalled();
+
+      now = 5001;
+      (engine as any).animate();
+      expect(next).toHaveBeenCalledTimes(1);
+    });
+  });
 });
