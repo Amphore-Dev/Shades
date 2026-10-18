@@ -4,14 +4,17 @@ import { intToHex, rgbToHex } from "../../utils/UColors.js";
 import { ShadeItem } from "./BaseShape.js";
 
 /**
- * Image shape that displays images (SVG, PNG, JPG, etc.)
- * More flexible than the original LogoShape - accepts image URLs or HTMLImageElement
+ * Image shape: draws an image (URL, <img> or SVG element given as
+ * `imageSource`) tinted with the shade color. Draws nothing without one.
  */
 export class ImageShape extends ShadeItem {
   image?: HTMLImageElement;
   imageUrl?: string;
   hasImageLoaded: boolean = false;
   hexColor: string;
+  // Offscreen buffer: the tint ("source-in" over the whole surface) would
+  // otherwise wipe everything already drawn on the main canvas
+  private buffer: HTMLCanvasElement = document.createElement("canvas");
 
   constructor(
     x: number,
@@ -31,14 +34,7 @@ export class ImageShape extends ShadeItem {
   private loadImage(
     imageSource?: string | HTMLImageElement | HTMLElement
   ): void {
-    if (!imageSource) {
-      // Fallback: try to find a Logo element in DOM
-      const svg = document.getElementById("Logo") as HTMLElement;
-      if (svg) {
-        this.loadFromSVGElement(svg);
-      }
-      return;
-    }
+    if (!imageSource) return;
 
     if (typeof imageSource === "string") {
       // Load from URL
@@ -51,6 +47,7 @@ export class ImageShape extends ShadeItem {
       if (!this.hasImageLoaded) {
         imageSource.onload = () => {
           this.hasImageLoaded = true;
+          this.requestRender();
         };
       }
     } else {
@@ -64,6 +61,7 @@ export class ImageShape extends ShadeItem {
     img.crossOrigin = "anonymous"; // Enable CORS if needed
     img.onload = () => {
       this.hasImageLoaded = true;
+      this.requestRender();
     };
     img.onerror = () => {
       console.warn(`Failed to load image from URL: ${url}`);
@@ -78,6 +76,7 @@ export class ImageShape extends ShadeItem {
       const img = new Image();
       img.onload = () => {
         this.hasImageLoaded = true;
+        this.requestRender();
       };
       img.onerror = () => {
         console.warn("Failed to load SVG element as image");
@@ -111,11 +110,23 @@ export class ImageShape extends ShadeItem {
     const width = this.image.width * heightRatio;
     const height = this.image.height * heightRatio;
 
+    const canvasWidth = Math.round(center.x * 2);
+    const canvasHeight = Math.round(center.y * 2);
+    if (
+      this.buffer.width !== canvasWidth ||
+      this.buffer.height !== canvasHeight
+    ) {
+      this.buffer.width = canvasWidth;
+      this.buffer.height = canvasHeight;
+    }
+    const bufferCtx = this.buffer.getContext("2d");
+    if (!bufferCtx) return;
+    bufferCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+
     for (let i = 0; i < nbrShades; i++) {
-      this.setColors(ctx, gradRatio, i);
-      ctx.fillStyle = this.hexColor;
-      ctx.beginPath();
-      ctx.drawImage(
+      this.setColors(bufferCtx, gradRatio, i);
+      bufferCtx.fillStyle = this.hexColor;
+      bufferCtx.drawImage(
         this.image,
         center.x +
           this.position.x -
@@ -128,10 +139,11 @@ export class ImageShape extends ShadeItem {
         width,
         height
       );
-      ctx.globalCompositeOperation = "source-in";
-      ctx.fillRect(0, 0, center.x * 2, center.y * 2);
-      ctx.globalCompositeOperation = "source-over";
-      ctx.closePath();
+      bufferCtx.globalCompositeOperation = "source-in";
+      bufferCtx.fillRect(0, 0, canvasWidth, canvasHeight);
+      bufferCtx.globalCompositeOperation = "source-over";
     }
+
+    ctx.drawImage(this.buffer, 0, 0, canvasWidth, canvasHeight);
   };
 }

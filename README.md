@@ -107,17 +107,18 @@ new ShadesEngine(canvas: HTMLCanvasElement, options?: TShadesEngineOptions)
 
 ```typescript
 interface TShadesEngineOptions {
-  shapes?: TShadeType[]; // Shape types to use for generation (ex: ["circle", "square"])
+  shapes?: TShadeType[]; // Exact pool of random generations (default: built-in shapes + customShapes)
   customShapes?: Record<string, TShadeTypeConstructor>; // Custom shape classes (ex: { "star": StarShape })
   debug?: boolean | TShadesEngineDebugOptions; // Show debug information or options
   fadeDuration?: number; // Fade duration in milliseconds (default: 1000ms)
   text?: string | string[]; // Text of text shapes (default: "SHADES")
-  font?: string; // Font family of text shapes
-  intro?: boolean; // Show the text intro first (default: true)
+  font?: string; // Font family of text shapes, loaded by your page (default: "sans-serif")
+  intro?: TShadesPreset; // First generation, before the presets (default: none)
   presets?: TShadesPreset[]; // Generations played in order
   presetsEnd?: "loop" | "random"; // After the last preset (default: "random")
   interactions?: TShadesEngineInteractions; // Enable, disable or override interactions
   onGenerate?: (config: TShadeConfig, info: TShadesGenerationInfo) => void;
+  onChange?: (config: TShadeConfig) => void; // Current generation changed (wheel, pinch, set*())
   autoMove?: boolean | TShadesAutoMoveOptions; // Parallax drifts on its own
   autoNext?: number; // Next generation every N ms
 }
@@ -131,10 +132,12 @@ interface TShadesEngineOptions {
 | `start()`                    | Start animation                                           |
 | `pause()`                    | Pause animation                                           |
 | `next()`                     | Play the next generation                                  |
-| `regenerate()`               | Deprecated alias of `next()`                              |
 | `destroy()`                  | Cleanup and remove event listeners                        |
 | `setShadesCount(count)`      | Set the number of shades                                  |
 | `adjustShadesCount(delta)`   | Add to the number of shades                               |
+| `setItemsCount(x, y?)`       | Rebuild the current grid with `x` × `y` items (y: x)      |
+| `setSpacing(x, y?)`          | Gaps between the current items (y: x)                     |
+| `setColors(colors, main?)`   | Recolor the current items (main: random from `colors`)    |
 | `setAutoMove(value)`         | Enable/disable/configure auto-move                        |
 | `setTargetOffset(offset?)`   | Move parallax target (default: center)                    |
 | `setFadeDuration(duration)`  | Fade duration in ms, from the next fade                   |
@@ -163,6 +166,26 @@ new ShadesEngine(canvas, {
 });
 ```
 
+## Intro
+
+`intro` is a preset played once, as the very first generation, before the
+`presets`. Like a preset, any field left out is randomized. Without it, the
+engine starts straight with the presets, or with random generations.
+
+```typescript
+new ShadesEngine(canvas, {
+  text: "AMPHORE",
+  intro: {
+    type: "text",
+    nbrItemsX: 1,
+    nbrItemsY: 1,
+    nbrShades: 10,
+    width: canvas.clientWidth / 6,
+    colors: [{ r: 247, g: 196, b: 141 }],
+  },
+});
+```
+
 ## Presets
 
 `presets` plays predefined generations in order, one per click or `next()`
@@ -173,7 +196,6 @@ switches to random generations (`"random"`, default).
 
 ```typescript
 new ShadesEngine(canvas, {
-  intro: true,
   presets: [
     { type: "logo", nbrShades: 30, thickness: 1 },
     {
@@ -274,6 +296,11 @@ export class StarShape extends ShadeItem {
     this.type = "star";
   }
 
+  // Turns a bit on every draw: keeps the engine drawing every frame
+  isAnimated() {
+    return this.rotation;
+  }
+
   draw = (
     ctx: CanvasRenderingContext2D,
     config: TShadeConfig,
@@ -328,6 +355,11 @@ export class StarShape extends ShadeItem {
 }
 ```
 
+The engine skips frames where nothing changes. A shape that changes on
+every draw by itself (like the rotating star above) returns `true` from
+`isAnimated()`. A shape whose look changes later on its own, like an image
+that finishes loading, calls `this.requestRender()` at that moment.
+
 ### Using Custom Shapes
 
 ```typescript
@@ -338,6 +370,9 @@ const engine = new ShadesEngine(canvas, {
   customShapes: {
     star: StarShape, // Register your custom shape
   },
+  // Optional: the exact pool of random generations. Without it, custom
+  // shapes are picked along with the built-in ones
+  shapes: ["circle", "square", "star"],
   fadeDuration: 800,
 });
 

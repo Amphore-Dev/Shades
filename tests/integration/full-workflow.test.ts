@@ -104,9 +104,9 @@ describe("Integration Tests", () => {
       }
     });
 
-    it("should handle color generation with different shape types", () => {
-      SHADES_TYPES.forEach((shapeType) => {
-        const colors = getRandColors(shapeType);
+    it("should generate two colors, for any shape type", () => {
+      SHADES_TYPES.forEach(() => {
+        const colors = getRandColors();
         expect(Array.isArray(colors)).toBe(true);
         expect(colors).toHaveLength(2);
 

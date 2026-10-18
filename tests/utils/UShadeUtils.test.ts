@@ -8,11 +8,11 @@ import {
 import {
   SHADES_TYPES,
   COLORS,
-  LIGHT_COLORS,
   LINE_CAP_TYPES,
   RANDOM_FILTERS,
   MAX_SHADES_NBR,
 } from "../../src/constants/index";
+import { CircleShape } from "../../src/classes/shapes/CircleShape";
 import { TShadeColor } from "../../src/types/index";
 
 // Mock document.body for testing
@@ -64,12 +64,24 @@ describe("UShadeUtils", () => {
       expect(customShapes).toContain(config.type);
     });
 
-    it("should handle logo type specially", () => {
-      const config = genConfig({ shapes: ["logo"] });
-      expect(config.type).toBe("logo");
-      expect(config.nbrShades).toBe(MAX_SHADES_NBR);
-      expect(config.nbrItemsX).toBe(1);
-      expect(config.nbrItemsY).toBe(1);
+    it("draws from exactly the given shapes, custom ones included", () => {
+      const options = {
+        shapes: ["star"],
+        customShapes: { star: CircleShape, heart: CircleShape },
+      };
+      for (let i = 0; i < 20; i++) {
+        expect(genConfig(options).type).toBe("star");
+      }
+    });
+
+    it("adds custom shapes to the built-in ones without shapes", () => {
+      const types = new Set(
+        Array.from(
+          { length: 300 },
+          () => genConfig({ customShapes: { star: CircleShape } }).type
+        )
+      );
+      expect(types).toEqual(new Set([...SHADES_TYPES, "star"]));
     });
 
     it("should set center point correctly", () => {
@@ -91,18 +103,15 @@ describe("UShadeUtils", () => {
       }
     });
 
-    it("should include custom shapes in type selection", () => {
-      // Skip this test as it requires proper type definitions
-      const config = genConfig({ shapes: ["circle"] });
-      expect(config.type).toBeDefined();
-    });
-
     it("should calculate totalWidth and totalHeight correctly", () => {
       const config = genConfig();
+      // Items plus the gaps between them, none after the last one
       const expectedTotalWidth =
-        config.nbrItemsX * config.width + config.nbrItemsX * config.spacing;
+        config.nbrItemsX * config.width +
+        (config.nbrItemsX - 1) * config.spacing;
       const expectedTotalHeight =
-        config.nbrItemsY * config.height + config.nbrItemsY * config.spacing;
+        config.nbrItemsY * config.height +
+        (config.nbrItemsY - 1) * config.spacing;
 
       expect(config.totalWidth).toBe(expectedTotalWidth);
       expect(config.totalHeight).toBe(expectedTotalHeight);
@@ -126,13 +135,6 @@ describe("UShadeUtils", () => {
       });
     });
 
-    it("should use LIGHT_COLORS for logo type", () => {
-      const colors = getRandColors("logo");
-      colors.forEach((color) => {
-        expect(LIGHT_COLORS).toContainEqual(color);
-      });
-    });
-
     it("should use provided color array when given", () => {
       const customColors: TShadeColor[] = [
         { r: 255, g: 0, b: 0 },
@@ -145,8 +147,8 @@ describe("UShadeUtils", () => {
       });
     });
 
-    it("should use default COLORS for other shape types", () => {
-      const colors = getRandColors("circle");
+    it("should use the default COLORS without a palette", () => {
+      const colors = getRandColors();
       colors.forEach((color) => {
         expect(COLORS).toContainEqual(color);
       });

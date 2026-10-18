@@ -25,7 +25,7 @@ describe("TextShape", () => {
     expect(text.position).toEqual({ x: 10, y: 20 });
     expect(text.color).toEqual(testColor);
     expect(text.text).toBe("SHADES"); // Default text
-    expect(text.font).toBe("Remained"); // Default font
+    expect(text.font).toBe("sans-serif"); // Default font
   });
 
   it("should accept custom text and font", () => {
@@ -48,7 +48,7 @@ describe("TextShape", () => {
 
     // Check that text and font are set correctly
     expect(mockCtx.font).toContain(testConfig.width.toString());
-    expect(mockCtx.font).toContain("Remained");
+    expect(mockCtx.font).toContain("sans-serif");
     expect(mockCtx.textBaseline).toBe("middle");
     expect(mockCtx.textAlign).toBe("center");
   });
@@ -71,6 +71,6 @@ describe("TextShape", () => {
 
     text.draw(mockCtx, testConfig, offset);
 
-    expect(mockCtx.font).toBe(`${testConfig.width}px Remained`);
+    expect(mockCtx.font).toBe(`${testConfig.width}px sans-serif`);
   });
 });

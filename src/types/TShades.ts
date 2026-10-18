@@ -11,7 +11,14 @@ import type { ShadeItem } from "../classes/shapes/BaseShape.js";
 import { TShadeColor } from "./TShadeItem.js";
 import { TShapeOptions } from "./TShapeOptions.js";
 
-export type TShadeType = (typeof SHADES_TYPES)[number] | string;
+/** Built-in shapes. "image" needs an imageSource, so it's never picked at random. */
+export type TBuiltinShadeType = (typeof SHADES_TYPES)[number] | "image";
+
+/**
+ * A built-in shape (autocompleted) or the key of a shape registered in
+ * `customShapes`. Unknown types throw when generated.
+ */
+export type TShadeType = TBuiltinShadeType | (string & {});
 
 /**
  * Any shape class: built-in ones and custom shapes extending ShadeItem.
@@ -25,11 +32,10 @@ export type TShadeTypeConstructor = new (
   options?: TShapeOptions & { [key: string]: unknown }
 ) => ShadeItem;
 
-type IShadeTypeConstructors = {
-  [key in TShadeType]: TShadeTypeConstructor;
-};
-
-export const SHADES_TYPES_CONSTRUCTORS_LIST: IShadeTypeConstructors = {
+export const SHADES_TYPES_CONSTRUCTORS_LIST: Record<
+  TBuiltinShadeType,
+  TShadeTypeConstructor
+> = {
   square: SquaredShape,
   circle: CircleShape,
   text: TextShape,

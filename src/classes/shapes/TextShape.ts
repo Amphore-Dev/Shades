@@ -1,10 +1,9 @@
-import { random } from "../../utils/UMaths.js";
 import { TShadeColor, TShadeConfig, TShapeOptions } from "../../types/index.js";
 import { TPoint } from "../../types/TPoints.js";
 import { ShadeItem } from "./BaseShape.js";
 
-const fontList = ["Remained"];
-const curFont = fontList[random(0, fontList.length - 1, true)]; // Default to monospace for better compatibility
+// Shades doesn't ship a font: pass `font` (loaded by the page) to change it
+const DEFAULT_FONT = "sans-serif";
 
 /**
  * Text shape implementation for displaying text
@@ -22,7 +21,7 @@ export class TextShape extends ShadeItem {
     super(x, y, color, { ...options, filled: true });
     this.type = "text";
     this.text = options.text ?? "SHADES";
-    this.font = options.font ?? curFont;
+    this.font = options.font ?? DEFAULT_FONT;
   }
 
   draw = (

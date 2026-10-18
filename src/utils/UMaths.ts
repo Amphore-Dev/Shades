@@ -1,13 +1,14 @@
 /**
- * Generate random integer between min and max (inclusive)
+ * Random number in [min, max). With `integer`, a uniformly distributed
+ * integer in [min, max], both included.
  */
 export function random(
   min: number,
   max: number,
   integer: boolean = false
 ): number {
-  const rand = Math.random() * (max - min) + min;
-  return integer ? Math.round(rand) : rand;
+  if (integer) return Math.floor(Math.random() * (max - min + 1)) + min;
+  return Math.random() * (max - min) + min;
 }
 
 /**

@@ -11,13 +11,14 @@ export type TShadeFilter = (
 export type TShadeConfig = {
   width: number;
   height: number;
+  /** Gap between items; horizontal only when spacingY is set. */
   spacing: number;
+  /** Vertical gap between items. Defaults to spacing. */
+  spacingY?: number;
   thickness: number;
   nbrShades: number;
   nbrItemsX: number;
   nbrItemsY: number;
-  offsetX: number;
-  offsetY: number;
   center: TPoint;
   totalWidth: number;
   totalHeight: number;

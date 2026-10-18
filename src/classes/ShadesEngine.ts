@@ -1,4 +1,4 @@
-import { ShadeItem, TextShape, ImageShape } from "./index.js";
+import { ShadeItem } from "./index.js";
 import {
   TPoint,
   TShadeColor,
@@ -6,77 +6,44 @@ import {
   SHADES_TYPES_CONSTRUCTORS_LIST,
   TShadeTypeConstructor,
   TShadeType,
+  TBuiltinShadeType,
   TShadesPreset,
   TShapeOptions,
 } from "../types/index.js";
-import { HOME_COLORS, MAX_SHADES_NBR } from "../constants/index.js";
-import { genConfig, getRandColors, random } from "../utils/index.js";
+import { MAX_ITEMS_NBR, MAX_SHADES_NBR } from "../constants/index.js";
+import {
+  genConfig,
+  getGridSize,
+  getItemPosition,
+  getRandColors,
+  random,
+} from "../utils/index.js";
+import {
+  createAutoMovePhases,
+  getAutoMovePoint,
+  resolveAutoMove,
+  TResolvedAutoMove,
+  TShadesAutoMoveOptions,
+} from "./engine/autoMove.js";
+import {
+  DebugOverlay,
+  TShadesEngineDebugOptions,
+} from "./engine/DebugOverlay.js";
+import {
+  InteractionBinder,
+  TShadesEngineInteractions,
+} from "./engine/interactions.js";
 
-export type TShadesEngineDebugOptions = {
-  className?: string;
-};
-
-/** Event type received by each interaction. */
-export type TShadesInteractionEvents = {
-  click: MouseEvent;
-  wheel: WheelEvent;
-  mouseMove: MouseEvent;
-  touchMove: TouchEvent;
-  /** A plain "resize" Event: the canvas is watched with a ResizeObserver when available. */
-  resize: Event;
-};
-
-/**
- * Replaces the engine's default behavior for an interaction.
- * Call `defaultHandler(event)` to keep (or wrap) the built-in behavior.
- */
-export type TShadesInteractionHandler<E extends Event> = (
-  event: E,
-  engine: ShadesEngine,
-  defaultHandler: (event: E) => void
-) => void;
-
-/** `true` (default): built-in behavior, `false`: disabled, function: custom handler. */
-export type TShadesInteraction<E extends Event> =
-  | boolean
-  | TShadesInteractionHandler<E>;
-
-export type TShadesEngineInteractions = {
-  [K in keyof TShadesInteractionEvents]?: TShadesInteraction<
-    TShadesInteractionEvents[K]
-  >;
-};
+export type * from "./engine/autoMove.js";
+export type * from "./engine/DebugOverlay.js";
+export type * from "./engine/interactions.js";
 
 export type TShadesGenerationInfo = {
-  /** 0-based generation index (the intro is generation 0 when enabled). */
+  /** 0-based generation index (the intro, when given, is generation 0). */
   generation: number;
   intro: boolean;
   /** Index of the preset used, or `null` for the intro / a random generation. */
   presetIndex: number | null;
-};
-
-/**
- * Auto-move trajectory: receives the time in seconds (already multiplied by
- * `speed`) and returns a point within [-1, 1] on each axis, scaled by
- * `amplitude`.
- */
-export type TShadesAutoMovePathFn = (time: number) => TPoint;
-
-export type TShadesAutoMovePath =
-  | "drift"
-  | "circle"
-  | "figure8"
-  | TShadesAutoMovePathFn;
-
-export type TShadesAutoMoveOptions = {
-  /** Max distance from the center, as a fraction of the canvas' smallest side. Defaults to 0.15. */
-  amplitude?: number;
-  /** Speed multiplier. Defaults to 1. */
-  speed?: number;
-  /** Delay (ms) after the last mouse/touch move before auto-move takes over again. Defaults to 3000. */
-  resumeDelay?: number;
-  /** Trajectory: "drift" (default, organic loop like the screensaver), "circle", "figure8", or a custom function. */
-  path?: TShadesAutoMovePath;
 };
 
 export type TShadesEngineOptions = {
@@ -88,8 +55,8 @@ export type TShadesEngineOptions = {
   text?: string | string[];
   /** Font family used by text shapes. */
   font?: string;
-  /** Show the text intro before the first generation. Defaults to true. */
-  intro?: boolean;
+  /** First generation, before the presets. Fields left out are randomized. Without it, the engine starts with the presets (or random generations). */
+  intro?: TShadesPreset;
   /** Generations played in order, one per click/next(). Fields left out are randomized. */
   presets?: TShadesPreset[];
   /** What happens once every preset was played: start over ("loop") or switch to random generations ("random", default). */
@@ -98,6 +65,12 @@ export type TShadesEngineOptions = {
   interactions?: TShadesEngineInteractions;
   /** Called after each generation. */
   onGenerate?: (config: TShadeConfig, info: TShadesGenerationInfo) => void;
+  /**
+   * Called when the current generation changes without a new one starting:
+   * shades count (wheel, pinch, setShadesCount), setItemsCount, setSpacing,
+   * setColors.
+   */
+  onChange?: (config: TShadeConfig) => void;
   /**
    * Drifts the parallax offset on its own, like the screensaver. Mouse/touch
    * moves still take over, and auto-move resumes after `resumeDelay`.
@@ -125,15 +98,25 @@ export class ShadesEngine {
   private genCount = 0;
   private presetCursor = 0;
   private currentPresetIndex: number | null = null;
+  private isIntroGeneration = false;
   private lastGenerationTime = 0;
 
   // Auto-move
-  private autoMove: Required<TShadesAutoMoveOptions> | null = null;
+  private autoMove: TResolvedAutoMove | null = null;
   private autoMovePhases: number[] = [];
   private lastPointerMoveTime = -Infinity;
+  // Bumped by destroy() so a generate() still waiting for fonts gives up
+  private lifecycle = 0;
   // Path time (s), advanced by frame delta x speed so speed changes don't jump
   private autoMoveTime = 0;
   private lastFrameTime: number | null = null;
+  // Drawn into while fading, then copied at the fade opacity: fading the
+  // whole frame keeps overlapping layers as they are, on any background
+  private fadeBuffer: HTMLCanvasElement | null = null;
+  // Frames are only drawn when something changed or moves: set by any change
+  // of the items or config, cleared once drawn
+  private needsRender = true;
+  private hasAnimatedItems = false;
   private fade = {
     isFading: true,
     opacity: 0,
@@ -151,21 +134,15 @@ export class ShadesEngine {
   private fpsIntervalId: ReturnType<typeof setInterval> | null = null;
   private lastPinchDistance: number | null = null; // For pinch to adjust shades on touch devices
 
-  // Event handlers attached by attachEventListeners, kept for removal
-  private listeners: {
-    target: EventTarget;
-    type: string;
-    handler: EventListener;
-  }[] = [];
-  private resizeObserver: ResizeObserver | null = null;
-
-  // Debug
-  private debug: boolean | TShadesEngineDebugOptions = false;
-  private debugContainer: HTMLPreElement | null = null;
+  // Set by attachEventListeners, cleared by destroy
+  private interactions: InteractionBinder | null = null;
+  private debugOverlay: DebugOverlay | null = null;
 
   constructor(canvas: HTMLCanvasElement, options: TShadesEngineOptions = {}) {
     this.canvas = canvas;
-    this.options = options;
+    // Own copy: setters (setAutoMove, setFadeDuration…) must not write into
+    // the object the caller passed
+    this.options = { ...options };
 
     const context = canvas.getContext("2d");
     if (!context) {
@@ -185,67 +162,24 @@ export class ShadesEngine {
   }
 
   private initializeAutoMove(): void {
-    const { autoMove } = this.options;
-    const prefersReducedMotion =
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-    if (!autoMove || prefersReducedMotion) {
-      this.autoMove = null;
-      return;
-    }
-
-    this.autoMove = {
-      amplitude: 0.15,
-      speed: 1,
-      resumeDelay: 3000,
-      path: "drift",
-      ...(typeof autoMove === "object" ? autoMove : {}),
-    };
-    // Random phases so each instance follows its own path, kept when
-    // reconfigured so the path doesn't jump
-    if (!this.autoMovePhases.length) {
-      this.autoMovePhases = Array.from(
-        { length: 4 },
-        () => Math.random() * Math.PI * 2
-      );
+    this.autoMove = resolveAutoMove(this.options.autoMove);
+    // Kept when reconfigured, so the path doesn't jump
+    if (this.autoMove && !this.autoMovePhases.length) {
+      this.autoMovePhases = createAutoMovePhases();
     }
   }
 
-  /** Smooth looping path (sum of slow sines, same as the screensaver). */
   private getAutoMoveOffset(): TPoint {
     const { amplitude, path } = this.autoMove!;
     const range =
       Math.min(this.canvas.clientWidth, this.canvas.clientHeight) * amplitude;
-    const t = this.autoMoveTime;
-    const point =
-      typeof path === "function" ? path(t) : this.getBuiltinPathPoint(path, t);
+    const point = getAutoMovePoint(
+      path,
+      this.autoMoveTime,
+      this.autoMovePhases
+    );
 
     return { x: point.x * range, y: point.y * range };
-  }
-
-  /** Built-in trajectories, within [-1, 1], offset by this instance's random phases. */
-  private getBuiltinPathPoint(
-    path: Exclude<TShadesAutoMovePath, TShadesAutoMovePathFn>,
-    t: number
-  ): TPoint {
-    const [p1, p2, p3, p4] = this.autoMovePhases;
-
-    if (path === "circle") {
-      const angle = t * 0.1 + p1;
-      return { x: Math.cos(angle), y: Math.sin(angle) };
-    }
-
-    if (path === "figure8") {
-      const angle = t * 0.1 + p1;
-      return { x: Math.sin(angle), y: Math.sin(angle * 2) };
-    }
-
-    // Slow sines with unrelated frequencies, same as the screensaver
-    return {
-      x: (Math.sin(t * 0.08 + p1) + Math.cos(t * 0.05 + p2) * 0.5) / 1.5,
-      y: (Math.cos(t * 0.06 + p3) + Math.sin(t * 0.04 + p4) * 0.5) / 1.5,
-    };
   }
 
   /**
@@ -263,36 +197,29 @@ export class ShadesEngine {
   public generate(): void {
     this.attachEventListeners();
 
-    // Wait for fonts to be ready (comme dans le code original)
+    // Wait for fonts, so text shapes measure with the right one
     if (document.fonts) {
-      document.fonts.ready.then(() => this.initDefaultGeneration());
+      const lifecycle = this.lifecycle;
+      document.fonts.ready.then(() => {
+        if (lifecycle === this.lifecycle) this.initDefaultGeneration();
+      });
     } else {
       this.initDefaultGeneration();
     }
   }
 
   private initDefaultGeneration(): void {
-    if (this.options.intro === false) {
+    const { intro } = this.options;
+
+    if (!intro) {
       this.applyNextConfig();
       this.genItems();
       return;
     }
 
-    this.config = {
-      ...this.config,
-      nbrItemsX: 1,
-      nbrItemsY: 1,
-      nbrShades: 10,
-      gradRatio: 100 / 10,
-      width: this.canvas.clientWidth / 6,
-      height: this.canvas.clientWidth / 6,
-    };
-
-    this.genItems(
-      TextShape,
-      HOME_COLORS[random(0, HOME_COLORS.length - 1, true)],
-      true
-    );
+    this.currentPresetIndex = null;
+    this.applyPreset(intro);
+    this.genItems(true);
   }
 
   /**
@@ -319,7 +246,11 @@ export class ShadesEngine {
 
     this.currentPresetIndex = this.presetCursor;
     this.presetCursor++;
+    this.applyPreset(preset);
+  }
 
+  /** Sets the config from a preset, randomizing the fields it leaves out. */
+  private applyPreset(preset: TShadesPreset): void {
     const config: TShadeConfig = {
       ...this.genConfig(preset.type),
       ...preset,
@@ -363,16 +294,14 @@ export class ShadesEngine {
     return { ...config };
   }
 
-  private genItems(
-    constructor?: TShadeTypeConstructor,
-    forceColor?: TShadeColor | TShadeColor[],
-    intro = false
-  ): void {
+  /**
+   * Builds the items from the current config. A new generation (the
+   * default) is counted and reported to onGenerate; a rebuild of the current
+   * one (`newGeneration: false`) is not.
+   */
+  private genItems(intro = false, newGeneration = true): void {
     const config = this.getConfig();
     const {
-      width,
-      height,
-      spacing,
       nbrItemsX,
       nbrItemsY,
       type,
@@ -383,22 +312,19 @@ export class ShadesEngine {
     } = config;
 
     const items: ShadeItem[] = [];
-    const colors = configColors?.length
-      ? configColors
-      : Array.isArray(forceColor)
-        ? forceColor
-        : getRandColors(type);
-
-    const color =
-      forceColor && !Array.isArray(forceColor) ? forceColor : undefined;
+    const colors = configColors?.length ? configColors : getRandColors();
 
     const mainColor =
       configMainColor ?? colors[random(0, colors.length - 1, true)];
 
     const ShadeConstructor =
-      constructor ??
       this.options.customShapes?.[type] ??
-      SHADES_TYPES_CONSTRUCTORS_LIST[type];
+      SHADES_TYPES_CONSTRUCTORS_LIST[type as TBuiltinShadeType];
+    if (!ShadeConstructor) {
+      throw new Error(
+        `Shades: unknown shape type "${type}". Use a built-in type or register it in customShapes.`
+      );
+    }
 
     for (let x = 0; x < nbrItemsX; x++) {
       for (let y = 0; y < nbrItemsY; y++) {
@@ -406,21 +332,16 @@ export class ShadesEngine {
         const itemColor = colors[index];
         // Text options are ignored by non-text shapes
         const shapeOptions: TShapeOptions & { text?: string; font?: string } = {
-          filled: fillFilter?.(mainColor, color ?? itemColor),
-          rotation: rotationFilter?.(mainColor, color ?? itemColor),
+          filled: fillFilter?.(mainColor, itemColor),
+          rotation: rotationFilter?.(mainColor, itemColor),
           lineCap: config.lineCap,
           text: this.pickText(intro),
           font: this.options.font,
-          ...(constructor === ImageShape ? { imageSource: undefined } : {}),
         };
 
+        const position = getItemPosition(config, x, y);
         items.push(
-          new ShadeConstructor(
-            x * width + x * spacing,
-            y * height + y * spacing,
-            color ?? itemColor,
-            shapeOptions
-          )
+          new ShadeConstructor(position.x, position.y, itemColor, shapeOptions)
         );
       }
     }
@@ -432,11 +353,20 @@ export class ShadesEngine {
       fillFilter,
       colors,
       mainColor,
-      totalWidth: nbrItemsX * width + (nbrItemsX - 1) * spacing,
-      totalHeight: nbrItemsY * height + (nbrItemsY - 1) * spacing,
+      ...getGridSize(config),
     };
 
     this.items = items;
+    this.hasAnimatedItems = items.some((item) => item.isAnimated());
+    items.forEach((item) => {
+      item.requestRender = () => {
+        this.needsRender = true;
+      };
+    });
+    this.needsRender = true;
+    if (!newGeneration) return;
+
+    this.isIntroGeneration = intro;
     this.lastGenerationTime = performance.now();
 
     this.options.onGenerate?.(this.getShadesConfig(), {
@@ -453,13 +383,7 @@ export class ShadesEngine {
 
     const start = performance.now();
 
-    const { clientWidth: width, clientHeight: height } = this.canvas;
-    this.context.clearRect(0, 0, width + 2, height + 2);
-    this.context.lineWidth = this.config.thickness;
-
-    this.items.forEach((item) => {
-      item.draw(this.context, this.config, this.offset);
-    });
+    this.stepFade();
 
     // Auto-move drives the offset unless the pointer moved recently
     const isAutoMoving =
@@ -477,6 +401,8 @@ export class ShadesEngine {
       this.autoMoveTime += deltaTime * this.autoMove!.speed;
       this.targetOffset = this.getAutoMoveOffset();
     }
+
+    const previousOffset = this.offset;
 
     // Smooth offset animation, slower while auto-moving for a softer drift
     const step = isAutoMoving ? 0.02 : 0.1;
@@ -497,30 +423,18 @@ export class ShadesEngine {
       this.offset = { ...this.targetOffset };
     }
 
-    // Fade animation
-    if (this.fade.isFading) {
-      const fadeDuration =
-        (this.options.fadeDuration ?? 1000) / (this.genCount ? 2 : 1); // Speed up fade for subsequent generations (fade duration = fadeIn + fadeOut)
-      const currentTime = performance.now();
-      const { targetOpacity, startTime, onDone } = this.fade;
+    const isMoving =
+      this.offset.x !== previousOffset.x || this.offset.y !== previousOffset.y;
 
-      // Calculate progress based on elapsed real time
-      const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / fadeDuration, 1);
-
-      // Interpolate between startOpacity and targetOpacity
-      const { startOpacity } = this.fade;
-      this.fade.opacity =
-        startOpacity + (targetOpacity - startOpacity) * progress;
-
-      // Fade completed
-      if (progress >= 1) {
-        this.fade.opacity = targetOpacity;
-        this.fade.isFading = false;
-        if (targetOpacity === 0) {
-          onDone();
-        }
-      }
+    // Animated items (rotating ones…) change on every draw: every frame
+    if (
+      this.needsRender ||
+      this.fade.isFading ||
+      isMoving ||
+      this.hasAnimatedItems
+    ) {
+      this.draw();
+      this.needsRender = false;
     }
 
     // With auto-move, auto-next only runs while auto-moving, counted from
@@ -542,10 +456,6 @@ export class ShadesEngine {
       this.next();
     }
 
-    // Apply fade overlay
-    this.context.fillStyle = `rgba(0,0,0,${1 - this.fade.opacity})`;
-    this.context.fillRect(0, 0, width, height);
-
     const stop = performance.now();
     this.elapsedTime = stop - start;
     this.framesCount.count++;
@@ -555,6 +465,67 @@ export class ShadesEngine {
     }
 
     this.animationFrameId = requestAnimationFrame(() => this.animate());
+  }
+
+  /** Advances the fade in or out, by elapsed real time. */
+  private stepFade(): void {
+    if (!this.fade.isFading) return;
+
+    // Later generations fade out then in, each in half the duration
+    const fadeDuration =
+      (this.options.fadeDuration ?? 1000) / (this.genCount ? 2 : 1);
+    const { targetOpacity, startOpacity, startTime, onDone } = this.fade;
+    const progress = Math.min(
+      (performance.now() - startTime) / fadeDuration,
+      1
+    );
+
+    this.fade.opacity =
+      startOpacity + (targetOpacity - startOpacity) * progress;
+
+    if (progress >= 1) {
+      this.fade.opacity = targetOpacity;
+      this.fade.isFading = false;
+      if (targetOpacity === 0) onDone();
+    }
+  }
+
+  /** Draws the items, through the fade buffer while partly transparent. */
+  private draw(): void {
+    const { clientWidth: width, clientHeight: height } = this.canvas;
+    const { opacity } = this.fade;
+    const target = opacity < 1 ? this.getFadeContext() : this.context;
+
+    this.context.clearRect(0, 0, width, height);
+    if (opacity <= 0) return;
+
+    if (target !== this.context) target.clearRect(0, 0, width, height);
+    target.lineWidth = this.config.thickness;
+    this.items.forEach((item) => item.draw(target, this.config, this.offset));
+
+    if (target === this.context) return;
+    this.context.globalAlpha = opacity;
+    this.context.drawImage(target.canvas, 0, 0, width, height);
+    this.context.globalAlpha = 1;
+  }
+
+  /** The fade buffer's context, sized and scaled like the main canvas. */
+  private getFadeContext(): CanvasRenderingContext2D {
+    this.fadeBuffer ??= document.createElement("canvas");
+    const buffer = this.fadeBuffer;
+
+    if (
+      buffer.width !== this.canvas.width ||
+      buffer.height !== this.canvas.height
+    ) {
+      buffer.width = this.canvas.width;
+      buffer.height = this.canvas.height;
+    }
+
+    const context = buffer.getContext("2d") ?? this.context;
+    const dpr = window.devicePixelRatio || 1;
+    context.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return context;
   }
 
   private getCenter(): TPoint {
@@ -623,6 +594,70 @@ export class ShadesEngine {
       nbrShades,
       gradRatio: 100 / nbrShades,
     };
+    this.needsRender = true;
+    this.options.onChange?.(this.getShadesConfig());
+  }
+
+  /** Rebuilds the current generation's items from the updated config. */
+  private rebuildItems(changes: Partial<TShadeConfig>): void {
+    this.config = { ...this.config, ...changes };
+    this.genItems(this.isIntroGeneration, false);
+    this.options.onChange?.(this.getShadesConfig());
+  }
+
+  /**
+   * Sets the item grid of the current generation, each count within
+   * [1, MAX_ITEMS_NBR], and rebuilds its items with the same type, colors and
+   * sizes. `nbrItemsY` defaults to `nbrItemsX`.
+   */
+  public setItemsCount(nbrItemsX: number, nbrItemsY: number = nbrItemsX): void {
+    const clamp = (count: number) =>
+      Math.min(Math.max(Math.round(count), 1), MAX_ITEMS_NBR);
+
+    this.rebuildItems({
+      nbrItemsX: clamp(nbrItemsX),
+      nbrItemsY: clamp(nbrItemsY),
+    });
+  }
+
+  /**
+   * Sets the gaps between the current generation's items (0 at least) and
+   * moves them accordingly: the items themselves (colors, fill, rotation)
+   * are kept. `spacingY` defaults to `spacingX`.
+   */
+  public setSpacing(spacingX: number, spacingY: number = spacingX): void {
+    this.config = {
+      ...this.config,
+      spacing: Math.max(spacingX, 0),
+      spacingY: Math.max(spacingY, 0),
+    };
+    this.config = { ...this.config, ...getGridSize(this.config) };
+
+    // Items are built column by column: index = x * nbrItemsY + y
+    const { nbrItemsY } = this.config;
+    this.items.forEach((item, index) => {
+      item.position = getItemPosition(
+        this.config,
+        Math.floor(index / nbrItemsY),
+        index % nbrItemsY
+      );
+    });
+    this.needsRender = true;
+    this.options.onChange?.(this.getShadesConfig());
+  }
+
+  /**
+   * Sets the colors of the current generation and rebuilds its items, each
+   * picking one at random. `mainColor`, used by the fill and rotation
+   * filters, defaults to a random one of `colors`. Ignored when empty.
+   */
+  public setColors(colors: TShadeColor[], mainColor?: TShadeColor): void {
+    if (!colors.length) return;
+
+    this.rebuildItems({
+      colors: [...colors],
+      mainColor: mainColor ?? colors[random(0, colors.length - 1, true)],
+    });
   }
 
   private handleWheel(event: WheelEvent): void {
@@ -669,90 +704,23 @@ export class ShadesEngine {
     };
 
     this.offset = { x: 0, y: 0 };
+    this.needsRender = true;
   }
 
   private attachEventListeners(): void {
-    if (this.listeners.length || this.resizeObserver) return;
+    if (this.interactions) return;
 
-    this.bindInteraction(this.canvas, "click", "click", () =>
-      this.handleClick()
-    );
-    this.bindInteraction(this.canvas, "wheel", "wheel", (e) =>
-      this.handleWheel(e)
-    );
-    this.bindInteraction(document, "mousemove", "mouseMove", (e) =>
+    const binder = new InteractionBinder(this, this.options.interactions);
+    binder.bind(this.canvas, "click", "click", () => this.handleClick());
+    binder.bind(this.canvas, "wheel", "wheel", (e) => this.handleWheel(e));
+    binder.bind(document, "mousemove", "mouseMove", (e) =>
       this.handleMouseMove(e)
     );
-    this.bindInteraction(document, "touchmove", "touchMove", (e) =>
+    binder.bind(document, "touchmove", "touchMove", (e) =>
       this.handleTouchMove(e)
     );
-    this.bindResize();
-  }
-
-  /**
-   * Watches the canvas itself, so container resizes (not only window ones)
-   * are caught. Falls back to the window resize event.
-   */
-  private bindResize(): void {
-    const handler = this.resolveInteraction("resize", () =>
-      this.handleResize()
-    );
-    if (!handler) return;
-
-    if (typeof ResizeObserver === "undefined") {
-      window.addEventListener("resize", handler);
-      this.listeners.push({ target: window, type: "resize", handler });
-      return;
-    }
-
-    this.resizeObserver = new ResizeObserver(() =>
-      handler(new Event("resize"))
-    );
-    this.resizeObserver.observe(this.canvas);
-  }
-
-  /**
-   * Attaches the default handler of an interaction, a user override, or
-   * nothing, depending on `options.interactions[key]`.
-   */
-  private bindInteraction<K extends keyof TShadesInteractionEvents>(
-    target: EventTarget,
-    type: string,
-    key: K,
-    defaultHandler: (event: TShadesInteractionEvents[K]) => void
-  ): void {
-    const handler = this.resolveInteraction(key, defaultHandler);
-    if (!handler) return;
-
-    target.addEventListener(type, handler);
-    this.listeners.push({ target, type, handler });
-  }
-
-  /** The handler to run for an interaction: default, user override, or none if disabled. */
-  private resolveInteraction<K extends keyof TShadesInteractionEvents>(
-    key: K,
-    defaultHandler: (event: TShadesInteractionEvents[K]) => void
-  ): EventListener | null {
-    const interaction = this.options.interactions?.[key] ?? true;
-    if (interaction === false) return null;
-
-    return typeof interaction === "function"
-      ? (event: Event) =>
-          interaction(
-            event as TShadesInteractionEvents[K],
-            this,
-            defaultHandler
-          )
-      : (event: Event) => defaultHandler(event as TShadesInteractionEvents[K]);
-  }
-
-  private detachEventListeners(): void {
-    this.listeners.forEach(({ target, type, handler }) =>
-      target.removeEventListener(type, handler)
-    );
-    this.listeners = [];
-    this.resizeObserver?.disconnect();
-    this.resizeObserver = null;
+    binder.bindResize(this.canvas, () => this.handleResize());
+    this.interactions = binder;
   }
 
   // Public API methods for external interaction
@@ -761,6 +729,7 @@ export class ShadesEngine {
     if (this.isPlaying) return;
 
     this.isPlaying = true;
+    this.needsRender = true;
     // Auto-move waits resumeDelay before its first drift, as after a pointer move
     this.lastPointerMoveTime = performance.now();
     this.animate();
@@ -778,14 +747,12 @@ export class ShadesEngine {
   }
 
   public destroy(): void {
+    this.lifecycle++;
     this.pause();
-    this.detachEventListeners();
-
-    // Clean up debug element
-    if (this.debugContainer) {
-      this.debugContainer.remove();
-      this.debugContainer = null;
-    }
+    this.interactions?.detach();
+    this.interactions = null;
+    this.debugOverlay?.remove();
+    this.debugOverlay = null;
 
     // Reset state
     this.items = [];
@@ -799,11 +766,6 @@ export class ShadesEngine {
   /** Fades out and plays the next generation (next preset or random). */
   public next(): void {
     this.handleClick();
-  }
-
-  /** @deprecated Use `next()`. */
-  public regenerate(): void {
-    this.next();
   }
 
   public getShadesConfig(): TShadeConfig {
@@ -855,29 +817,8 @@ export class ShadesEngine {
   // Debug methods
 
   private initializeDebug(): void {
-    if (this.options.debug && !this.debugContainer) {
-      const debugElement = document.createElement("pre");
-      debugElement.className =
-        typeof this.options.debug === "object" && this.options.debug.className
-          ? this.options.debug.className
-          : "shades-debug";
-      debugElement.style.cssText = `
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        z-index: 10;
-        color: white;
-        text-align: left;
-        font-family: monospace;
-        font-size: 12px;
-        background: rgba(0,0,0,0.5);
-        padding: 10px;
-        pointer-events: none;
-      `;
-
-      // Insert before canvas in DOM
-      this.canvas.parentNode?.insertBefore(debugElement, this.canvas);
-      this.debugContainer = debugElement;
+    if (this.options.debug && !this.debugOverlay) {
+      this.debugOverlay = new DebugOverlay(this.canvas, this.options.debug);
     }
   }
 
@@ -900,18 +841,15 @@ export class ShadesEngine {
   }
 
   private updateDebug(): void {
-    const debugElement = this.debugContainer;
-    if (debugElement) {
-      debugElement.innerHTML = `
-Width: ${this.canvas.width}
-Height: ${this.canvas.height}
-IsPlaying: ${this.isPlaying}
-Elapsed Time: ${this.elapsedTime.toFixed(2)}ms
-FPS: ${this.framesCount.fps}
-Items: ${this.items.length}
-Generation: ${this.genCount}
-      `.trim();
-    }
+    this.debugOverlay?.update({
+      Width: this.canvas.width,
+      Height: this.canvas.height,
+      IsPlaying: this.isPlaying,
+      "Elapsed Time": `${this.elapsedTime.toFixed(2)}ms`,
+      FPS: this.framesCount.fps,
+      Items: this.items.length,
+      Generation: this.genCount,
+    });
   }
 
   public getDebugInfo(): { genCount: number; config: TShadeConfig } {
@@ -926,8 +864,8 @@ Generation: ${this.genCount}
     if (value) {
       this.initializeDebug();
     } else {
-      this.debugContainer?.remove();
-      this.debugContainer = null;
+      this.debugOverlay?.remove();
+      this.debugOverlay = null;
     }
   }
 }

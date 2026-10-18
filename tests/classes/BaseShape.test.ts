@@ -208,6 +208,25 @@ describe("BaseShape (ShadeItem)", () => {
 
       expect(mockCtx.strokeStyle).toBe("rgba(0, 0, 255, 0.9)");
     });
+
+    it("follows a new color", () => {
+      const item = new ShadeItem(0, 0, testColor);
+      item.setColors(mockCtx, 10, 1);
+
+      item.color = { r: 0, g: 255, b: 0 };
+      item.setColors(mockCtx, 10, 1);
+
+      expect(mockCtx.strokeStyle).toBe("rgba(0, 255, 0, 0.9)");
+    });
+
+    it("follows a new shades count", () => {
+      const item = new ShadeItem(0, 0, testColor);
+      item.setColors(mockCtx, 10, 1);
+
+      item.setColors(mockCtx, 20, 1);
+
+      expect(mockCtx.strokeStyle).toBe("rgba(255, 0, 0, 0.8)");
+    });
   });
 
   describe("property types", () => {

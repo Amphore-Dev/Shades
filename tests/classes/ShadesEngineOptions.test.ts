@@ -4,8 +4,8 @@ import {
 } from "../../src/classes/ShadesEngine";
 import { TextShape } from "../../src/classes/shapes/TextShape";
 import { ShadeItem } from "../../src/classes/shapes/BaseShape";
-import { TShadeColor, TShapeOptions } from "../../src/types";
-import { MAX_SHADES_NBR } from "../../src/constants";
+import { TShadeColor, TShadesPreset, TShapeOptions } from "../../src/types";
+import { MAX_ITEMS_NBR, MAX_SHADES_NBR } from "../../src/constants";
 
 // Without document.fonts, generate() runs the first generation synchronously
 const originalFonts = document.fonts;
@@ -32,6 +32,9 @@ const createEngine = (options: TShadesEngineOptions = {}) => {
   return { canvas, engine };
 };
 
+// A single text item, like the former built-in intro
+const TEXT_INTRO: TShadesPreset = { type: "text", nbrItemsX: 1, nbrItemsY: 1 };
+
 // Plays the next generation without waiting for the fade out
 const advance = (engine: ShadesEngine) => {
   engine.next();
@@ -41,7 +44,7 @@ const advance = (engine: ShadesEngine) => {
 describe("ShadesEngine options", () => {
   describe("text", () => {
     it("uses the given string for the intro", () => {
-      const { engine } = createEngine({ text: "AMPHORE" });
+      const { engine } = createEngine({ text: "AMPHORE", intro: TEXT_INTRO });
       engine.generate();
 
       const [item] = engine.getItems() as TextShape[];
@@ -49,7 +52,10 @@ describe("ShadesEngine options", () => {
     });
 
     it("uses the first string of an array for the intro", () => {
-      const { engine } = createEngine({ text: ["FIRST", "SECOND"] });
+      const { engine } = createEngine({
+        text: ["FIRST", "SECOND"],
+        intro: TEXT_INTRO,
+      });
       engine.generate();
 
       const [item] = engine.getItems() as TextShape[];
@@ -60,7 +66,6 @@ describe("ShadesEngine options", () => {
       const texts = ["A", "B", "C"];
       const { engine } = createEngine({
         text: texts,
-        intro: false,
         presets: [{ type: "text", nbrItemsX: 5, nbrItemsY: 5 }],
       });
       engine.generate();
@@ -71,7 +76,7 @@ describe("ShadesEngine options", () => {
     });
 
     it("keeps the default text when no text option is given", () => {
-      const { engine } = createEngine();
+      const { engine } = createEngine({ intro: TEXT_INTRO });
       engine.generate();
 
       const [item] = engine.getItems() as TextShape[];
@@ -79,7 +84,7 @@ describe("ShadesEngine options", () => {
     });
 
     it("passes the font option to text shapes", () => {
-      const { engine } = createEngine({ font: "Arial" });
+      const { engine } = createEngine({ font: "Arial", intro: TEXT_INTRO });
       engine.generate();
 
       const [item] = engine.getItems() as TextShape[];
@@ -87,28 +92,126 @@ describe("ShadesEngine options", () => {
     });
   });
 
-  describe("intro", () => {
-    it("starts with the text intro by default", () => {
+  describe("lifecycle", () => {
+    it("never writes into the options object it was given", () => {
+      const options: TShadesEngineOptions = { fadeDuration: 500 };
+      const { engine } = createEngine(options);
+
+      engine.setFadeDuration(2000);
+      engine.setAutoNext(1000);
+      engine.setAutoMove(true);
+
+      expect(options).toEqual({ fadeDuration: 500 });
+    });
+
+    it("doesn't generate when destroyed while waiting for fonts", async () => {
+      let fontsReady: () => void = () => {};
+      (document as any).fonts = {
+        ready: new Promise<void>((resolve) => (fontsReady = resolve)),
+      };
       const onGenerate = jest.fn();
       const { engine } = createEngine({ onGenerate });
+
+      engine.generate();
+      engine.destroy();
+      fontsReady();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(onGenerate).not.toHaveBeenCalled();
+      (document as any).fonts = undefined;
+    });
+  });
+
+  describe("fade", () => {
+    it("draws a fading frame through a buffer, at the fade opacity", () => {
+      const { engine } = createEngine({ intro: TEXT_INTRO });
+      engine.generate();
+      const ctx = (engine as any).context;
+      (engine as any).fade = {
+        ...(engine as any).fade,
+        isFading: false,
+        opacity: 0.5,
+      };
+
+      let alphaWhileCopying = 1;
+      ctx.drawImage.mockImplementation(() => {
+        alphaWhileCopying = ctx.globalAlpha;
+      });
+      (engine as any).draw();
+
+      expect(ctx.fillText).not.toHaveBeenCalled();
+      expect(ctx.fillRect).not.toHaveBeenCalled();
+      expect(ctx.drawImage).toHaveBeenCalledTimes(1);
+      expect(alphaWhileCopying).toBe(0.5);
+      expect(ctx.globalAlpha).toBe(1);
+    });
+
+    it("draws an opaque frame straight on the canvas", () => {
+      const { engine } = createEngine({ intro: TEXT_INTRO });
+      engine.generate();
+      const ctx = (engine as any).context;
+      (engine as any).fade = {
+        ...(engine as any).fade,
+        isFading: false,
+        opacity: 1,
+      };
+
+      (engine as any).draw();
+
+      expect(ctx.fillText).toHaveBeenCalled();
+      expect(ctx.drawImage).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("intro", () => {
+    it("starts with the presets when no intro is given", () => {
+      const onGenerate = jest.fn();
+      const { engine } = createEngine({
+        presets: [{ type: "square" }],
+        onGenerate,
+      });
       engine.generate();
 
-      expect(engine.getItems()[0]).toBeInstanceOf(TextShape);
+      expect(engine.getShadesConfig().type).toBe("square");
+      expect(onGenerate).toHaveBeenCalledWith(expect.any(Object), {
+        generation: 0,
+        intro: false,
+        presetIndex: 0,
+      });
+    });
+
+    it("plays the intro preset first, then the presets", () => {
+      const onGenerate = jest.fn();
+      const color: TShadeColor = { r: 193, g: 66, b: 93 };
+      const { engine } = createEngine({
+        intro: { ...TEXT_INTRO, colors: [color], nbrShades: 10 },
+        presets: [{ type: "square" }],
+        onGenerate,
+      });
+      engine.generate();
+
+      const [item] = engine.getItems();
+      expect(item).toBeInstanceOf(TextShape);
+      expect(item.color).toEqual(color);
+      expect(engine.getShadesConfig().nbrShades).toBe(10);
       expect(onGenerate).toHaveBeenCalledWith(expect.any(Object), {
         generation: 0,
         intro: true,
         presetIndex: null,
       });
+
+      advance(engine);
+      expect(engine.getShadesConfig().type).toBe("square");
     });
 
-    it("skips the intro when intro is false", () => {
-      const { engine } = createEngine({
-        intro: false,
-        presets: [{ type: "square" }],
-      });
+    it("randomizes the intro fields left out", () => {
+      const { engine } = createEngine({ intro: { type: "circle" } });
       engine.generate();
 
-      expect(engine.getShadesConfig().type).toBe("square");
+      const config = engine.getShadesConfig();
+      expect(config.type).toBe("circle");
+      expect(config.nbrShades).toBeGreaterThan(0);
     });
   });
 
@@ -119,7 +222,7 @@ describe("ShadesEngine options", () => {
     ];
 
     it("plays presets in order after the intro", () => {
-      const { engine } = createEngine({ presets });
+      const { engine } = createEngine({ presets, intro: TEXT_INTRO });
       engine.generate();
 
       advance(engine);
@@ -138,7 +241,11 @@ describe("ShadesEngine options", () => {
 
     it("switches to random generations after the last preset by default", () => {
       const onGenerate = jest.fn();
-      const { engine } = createEngine({ presets, onGenerate });
+      const { engine } = createEngine({
+        presets,
+        onGenerate,
+        intro: TEXT_INTRO,
+      });
       engine.generate();
 
       advance(engine);
@@ -158,6 +265,7 @@ describe("ShadesEngine options", () => {
         presets,
         presetsEnd: "loop",
         onGenerate,
+        intro: TEXT_INTRO,
       });
       engine.generate();
 
@@ -176,6 +284,7 @@ describe("ShadesEngine options", () => {
     it("keeps preset colors on every generation", () => {
       const colors = [{ r: 1, g: 2, b: 3 }];
       const { engine } = createEngine({
+        intro: TEXT_INTRO,
         presets: [
           { type: "square", colors },
           { type: "square", colors },
@@ -194,17 +303,10 @@ describe("ShadesEngine options", () => {
         .forEach((item) => expect(item.color).toEqual(colors[0]));
     });
 
-    it("uses logo defaults when the preset only sets a logo type", () => {
-      const { engine } = createEngine({
-        intro: false,
-        presets: [{ type: "logo" }],
-        customShapes: { logo: TextShape },
-      });
-      engine.generate();
+    it("throws a clear error for an unknown shape type", () => {
+      const { engine } = createEngine({ presets: [{ type: "cirle" }] });
 
-      const config = engine.getShadesConfig();
-      expect(config.nbrItemsX).toBe(1);
-      expect(config.nbrShades).toBe(MAX_SHADES_NBR);
+      expect(() => engine.generate()).toThrow('unknown shape type "cirle"');
     });
   });
 
@@ -246,6 +348,8 @@ describe("ShadesEngine options", () => {
 
     it("lets a custom handler fall back to the default behavior", () => {
       const { canvas, engine } = createEngine({
+        // Below MAX_SHADES_NBR, so the wheel can add one
+        intro: { ...TEXT_INTRO, nbrShades: 10 },
         interactions: {
           wheel: (event, _engine, defaultHandler) => defaultHandler(event),
         },
@@ -473,6 +577,118 @@ describe("ShadesEngine options", () => {
     });
   });
 
+  describe("onChange", () => {
+    it("reports changes of the current generation, not new ones", () => {
+      const onChange = jest.fn();
+      const onGenerate = jest.fn();
+      const { canvas, engine } = createEngine({
+        presets: [{ type: "square", nbrShades: 10 }],
+        onChange,
+        onGenerate,
+      });
+      engine.generate();
+      expect(onChange).not.toHaveBeenCalled();
+
+      canvas.dispatchEvent(new WheelEvent("wheel", { deltaY: -1 }));
+      expect(onChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({ nbrShades: 10.1 })
+      );
+
+      engine.setItemsCount(2, 3);
+      engine.setSpacing(7);
+      engine.setColors([{ r: 1, g: 2, b: 3 }]);
+
+      expect(onChange).toHaveBeenCalledTimes(4);
+      expect(onChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          nbrItemsX: 2,
+          nbrItemsY: 3,
+          spacing: 7,
+          colors: [{ r: 1, g: 2, b: 3 }],
+        })
+      );
+      expect(onGenerate).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("idle frames", () => {
+    beforeEach(() => {
+      global.requestAnimationFrame = jest.fn(() => 1);
+    });
+
+    // Generated, faded in and settled: nothing left to animate
+    const createSettledEngine = (
+      preset: TShadesPreset = { type: "square" }
+    ) => {
+      const { engine } = createEngine({ presets: [preset] });
+      engine.generate();
+      const internal = engine as any;
+      internal.fade = { ...internal.fade, isFading: false, opacity: 1 };
+      internal.isPlaying = true;
+      const draw = jest.spyOn(internal, "draw");
+      return { engine, internal, draw };
+    };
+
+    it("draws once, then skips frames where nothing changes", () => {
+      const { internal, draw } = createSettledEngine();
+
+      internal.animate();
+      internal.animate();
+      internal.animate();
+
+      expect(draw).toHaveBeenCalledTimes(1);
+    });
+
+    it("draws again after a change of the current generation", () => {
+      const { engine, internal, draw } = createSettledEngine();
+      internal.animate();
+
+      engine.setShadesCount(5);
+      internal.animate();
+      engine.setSpacing(4);
+      internal.animate();
+      internal.animate();
+
+      expect(draw).toHaveBeenCalledTimes(3);
+    });
+
+    it("draws while the offset moves, then stops once settled", () => {
+      const { engine, internal, draw } = createSettledEngine();
+      internal.animate();
+
+      engine.setTargetOffset({ x: 100, y: 0 });
+      for (let i = 0; i < 200; i++) internal.animate();
+      const drawsWhileMoving = draw.mock.calls.length;
+      internal.animate();
+
+      expect(drawsWhileMoving).toBeGreaterThan(2);
+      expect(draw).toHaveBeenCalledTimes(drawsWhileMoving);
+    });
+
+    it("keeps drawing every frame while items rotate", () => {
+      const { internal, draw } = createSettledEngine({
+        type: "triangle",
+        rotationFilter: () => true,
+      });
+
+      internal.animate();
+      internal.animate();
+      internal.animate();
+
+      expect(draw).toHaveBeenCalledTimes(3);
+    });
+
+    it("draws again when an item requests it", () => {
+      const { engine, internal, draw } = createSettledEngine();
+      internal.animate();
+
+      engine.getItems()[0].requestRender();
+      internal.animate();
+
+      expect(draw).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe("autoNext", () => {
     let now = 0;
 
@@ -626,19 +842,12 @@ describe("ShadesEngine options", () => {
     };
 
     it("centers every generation on the canvas", () => {
-      const engine = createSmallCanvasEngine({ intro: false });
+      const engine = createSmallCanvasEngine();
       engine.generate();
       expect(engine.getShadesConfig().center).toEqual({ x: 200, y: 100 });
 
       advance(engine);
       expect(engine.getShadesConfig().center).toEqual({ x: 200, y: 100 });
-    });
-
-    it("sizes the intro from the canvas width", () => {
-      const engine = createSmallCanvasEngine();
-      engine.generate();
-
-      expect(engine.getShadesConfig().width).toBeCloseTo(400 / 6);
     });
 
     it("measures the pointer from the canvas center", () => {
@@ -751,7 +960,6 @@ describe("ShadesEngine options", () => {
 
     it("accepts a class extending ShadeItem", () => {
       const { engine } = createEngine({
-        intro: false,
         customShapes: { star: StarShape },
         presets: [{ type: "star", nbrItemsX: 1, nbrItemsY: 1 }],
       });
@@ -784,6 +992,156 @@ describe("ShadesEngine options", () => {
 
       engine.adjustShadesCount(-5);
       expect(engine.getShadesConfig().nbrShades).toBe(7);
+    });
+  });
+  describe("spacing", () => {
+    const grid = {
+      type: "square" as const,
+      nbrItemsX: 3,
+      nbrItemsY: 2,
+      width: 10,
+      spacing: 5,
+    };
+
+    it("uses spacing on both axes unless spacingY is set", () => {
+      const { engine } = createEngine({ presets: [grid] });
+      engine.generate();
+
+      const config = engine.getShadesConfig();
+      expect(config.totalWidth).toBe(3 * 10 + 2 * 5);
+      expect(config.totalHeight).toBe(2 * 10 + 1 * 5);
+    });
+
+    it("takes a vertical gap from spacingY", () => {
+      const { engine } = createEngine({ presets: [{ ...grid, spacingY: 20 }] });
+      engine.generate();
+
+      expect(engine.getShadesConfig().totalHeight).toBe(2 * 10 + 1 * 20);
+      expect(engine.getItems()[1].position.y).toBe(10 + 20);
+    });
+
+    it("sets the gaps of the current generation", () => {
+      const onGenerate = jest.fn();
+      const { engine } = createEngine({ presets: [grid], onGenerate });
+      engine.generate();
+
+      const items = engine.getItems();
+
+      engine.setSpacing(8, 2);
+      let config = engine.getShadesConfig();
+      expect(config.totalWidth).toBe(3 * 10 + 2 * 8);
+      expect(config.totalHeight).toBe(2 * 10 + 1 * 2);
+      // Same items, moved: column 2, row 1 is the last one
+      engine.getItems().forEach((item, i) => expect(item).toBe(items[i]));
+      expect(engine.getItems()[5].position).toEqual({
+        x: 2 * (10 + 8),
+        y: 1 * (10 + 2),
+      });
+
+      engine.setSpacing(-4);
+      config = engine.getShadesConfig();
+      expect(config.spacing).toBe(0);
+      expect(config.spacingY).toBe(0);
+      expect(onGenerate).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("colors", () => {
+    const red: TShadeColor = { r: 255, g: 0, b: 0 };
+    const blue: TShadeColor = { r: 0, g: 0, b: 255 };
+
+    it("recolors the current generation's items", () => {
+      const onGenerate = jest.fn();
+      const { engine } = createEngine({
+        presets: [{ type: "square", nbrItemsX: 4, nbrItemsY: 4 }],
+        onGenerate,
+      });
+      engine.generate();
+
+      engine.setColors([red, blue], blue);
+
+      const config = engine.getShadesConfig();
+      expect(config.colors).toEqual([red, blue]);
+      expect(config.mainColor).toEqual(blue);
+      engine
+        .getItems()
+        .forEach((item) => expect([red, blue]).toContainEqual(item.color));
+      expect(onGenerate).toHaveBeenCalledTimes(1);
+    });
+
+    it("picks the main color among the colors when left out", () => {
+      const { engine } = createEngine({ presets: [{ type: "square" }] });
+      engine.generate();
+
+      engine.setColors([red]);
+      expect(engine.getShadesConfig().mainColor).toEqual(red);
+    });
+
+    it("ignores an empty color list", () => {
+      const { engine } = createEngine({
+        presets: [{ type: "square", colors: [red] }],
+      });
+      engine.generate();
+
+      engine.setColors([]);
+      expect(engine.getShadesConfig().colors).toEqual([red]);
+    });
+  });
+
+  describe("items count", () => {
+    const colors: TShadeColor[] = [{ r: 1, g: 2, b: 3 }];
+
+    it("rebuilds the current generation's grid, keeping its config", () => {
+      const onGenerate = jest.fn();
+      const { engine } = createEngine({
+        presets: [{ type: "circle", nbrItemsX: 2, nbrItemsY: 2, colors }],
+        onGenerate,
+      });
+      engine.generate();
+
+      engine.setItemsCount(4, 3);
+
+      const config = engine.getShadesConfig();
+      expect(config.nbrItemsX).toBe(4);
+      expect(config.nbrItemsY).toBe(3);
+      expect(config.type).toBe("circle");
+      expect(engine.getItems()).toHaveLength(12);
+      engine
+        .getItems()
+        .forEach((item) => expect(item.color).toEqual(colors[0]));
+      // Same generation: not reported again
+      expect(onGenerate).toHaveBeenCalledTimes(1);
+    });
+
+    it("uses the X count for Y when Y is left out", () => {
+      const { engine } = createEngine({ presets: [{ type: "square" }] });
+      engine.generate();
+
+      engine.setItemsCount(5);
+      expect(engine.getItems()).toHaveLength(25);
+    });
+
+    it("clamps each count to [1, MAX_ITEMS_NBR]", () => {
+      const { engine } = createEngine({ presets: [{ type: "square" }] });
+      engine.generate();
+
+      engine.setItemsCount(0, 1000);
+      const config = engine.getShadesConfig();
+      expect(config.nbrItemsX).toBe(1);
+      expect(config.nbrItemsY).toBe(MAX_ITEMS_NBR);
+    });
+
+    it("keeps the intro text when rebuilding the intro", () => {
+      const { engine } = createEngine({
+        text: ["FIRST", "SECOND"],
+        intro: TEXT_INTRO,
+      });
+      engine.generate();
+
+      engine.setItemsCount(3, 1);
+      const items = engine.getItems() as TextShape[];
+      expect(items).toHaveLength(3);
+      items.forEach((item) => expect(item.text).toBe("FIRST"));
     });
   });
 });

@@ -35,6 +35,18 @@ describe("UMaths", () => {
       expect(result).toBeLessThanOrEqual(-5);
     });
 
+    it("gives both integer bounds the same odds as the values between", () => {
+      const spy = jest.spyOn(Math, "random");
+      // Draws just above 0 and just below 1 land on the bounds
+      spy.mockReturnValueOnce(0).mockReturnValueOnce(0.999999);
+      expect(random(1, 3, true)).toBe(1);
+      expect(random(1, 3, true)).toBe(3);
+      // Each value covers a third of [0, 1)
+      spy.mockReturnValueOnce(0.34);
+      expect(random(1, 3, true)).toBe(2);
+      spy.mockRestore();
+    });
+
     it("should work when min and max are the same", () => {
       const result = random(5, 5);
       expect(result).toBe(5);

@@ -240,9 +240,9 @@ describe("ShadesEngine", () => {
       expect(engine.getItems()).toHaveLength(0);
     });
 
-    it("should trigger regeneration", () => {
+    it("should trigger the next generation", () => {
       expect(() => {
-        engine.regenerate();
+        engine.next();
       }).not.toThrow();
     });
 
@@ -303,14 +303,14 @@ describe("ShadesEngine", () => {
       expect(engine.isAnimating()).toBe(false);
     });
 
-    it("should apply fade overlay to canvas", () => {
+    it("never paints a fade overlay over the frame", () => {
       engine.start();
 
       const animateCallback = (global.requestAnimationFrame as jest.Mock).mock
         .calls[0][0];
       animateCallback(1000);
 
-      expect(mockContext.fillRect).toHaveBeenCalled();
+      expect(mockContext.fillRect).not.toHaveBeenCalled();
     });
   });
 

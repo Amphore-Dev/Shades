@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from "react";
-import { ShadesEngine } from "@amphore-dev/shades";
+import { ShadesEngine, TShadeConfig } from "@amphore-dev/shades";
 import { Modal } from "./components/Modal/Modal";
 import { Key } from "./components/Modal/Key";
 import { LevaControls } from "./components/LevaControls";
@@ -14,6 +14,8 @@ function App() {
   const isModalOpenRef = useRef(true);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<ShadesEngine | null>(null);
+  // Config of the generation on screen, mirrored in the Leva panel
+  const [generation, setGeneration] = useState<TShadeConfig | null>(null);
 
   const toggleFullScreen = () => {
     if (!document.fullscreenElement) {
@@ -51,6 +53,19 @@ function App() {
       // Same as the Leva default, which only applies once the modal is closed
       fadeDuration: 3000,
       debug: false,
+      font: "Remained",
+      // Mirrored in the Leva panel: new generations, and changes made with
+      // the wheel or the panel itself
+      onGenerate: (config) => setGeneration(config),
+      onChange: (config) => setGeneration(config),
+      // Single text item sized from the canvas, as before intro became a preset
+      intro: {
+        type: "text",
+        nbrItemsX: 1,
+        nbrItemsY: 1,
+        nbrShades: 10,
+        width: canvasRef.current.clientWidth / 6,
+      },
       // No parallax while the intro modal is open
       interactions: {
         mouseMove: (event, _engine, defaultHandler) => {
@@ -118,7 +133,11 @@ function App() {
           </tbody>
         </table>
       </Modal>
-      <LevaControls engineRef={engineRef} isModalOpen={isModalOpen} />
+      <LevaControls
+        engineRef={engineRef}
+        isModalOpen={isModalOpen}
+        generation={generation}
+      />
       {/* Canvas */}
       <canvas
         ref={canvasRef}
