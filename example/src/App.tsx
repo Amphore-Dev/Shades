@@ -53,6 +53,7 @@ function App() {
       // Same as the Leva default, which only applies once the modal is closed
       fadeDuration: 3000,
       debug: false,
+      font: "Remained",
       onGenerate: (config) => setGeneration(config),
       // Single text item sized from the canvas, as before intro became a preset
       intro: {

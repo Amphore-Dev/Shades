@@ -313,7 +313,8 @@ describe("ShadesEngine options", () => {
 
     it("lets a custom handler fall back to the default behavior", () => {
       const { canvas, engine } = createEngine({
-        intro: TEXT_INTRO,
+        // Below MAX_SHADES_NBR, so the wheel can add one
+        intro: { ...TEXT_INTRO, nbrShades: 10 },
         interactions: {
           wheel: (event, _engine, defaultHandler) => defaultHandler(event),
         },

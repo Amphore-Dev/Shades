@@ -85,11 +85,10 @@ describe("ImageShape", () => {
 
     image.draw(mockCtx, testConfig, offset);
 
-    // Should call drawing methods when image is loaded
-    expect(mockCtx.beginPath).toHaveBeenCalledTimes(testConfig.nbrShades);
-    expect(mockCtx.drawImage).toHaveBeenCalledTimes(testConfig.nbrShades);
-    expect(mockCtx.fillRect).toHaveBeenCalledTimes(testConfig.nbrShades);
-    expect(mockCtx.closePath).toHaveBeenCalledTimes(testConfig.nbrShades);
+    // Tinted in its own buffer, then copied once: the main canvas is never
+    // filled, so what's already drawn on it is kept
+    expect(mockCtx.drawImage).toHaveBeenCalledTimes(1);
+    expect(mockCtx.fillRect).not.toHaveBeenCalled();
   });
 
   it("should handle missing image source gracefully", () => {
@@ -101,15 +100,11 @@ describe("ImageShape", () => {
     }).not.toThrow();
   });
 
-  it("should load image from DOM element when fallback is used", () => {
-    const mockSVG = document.createElement("div");
-    mockSVG.id = "Logo";
-
-    jest.spyOn(document, "getElementById").mockReturnValue(mockSVG);
-
+  it("doesn't look for an image in the page without imageSource", () => {
     const image = new ImageShape(0, 0, testColor);
 
-    expect(document.getElementById).toHaveBeenCalledWith("Logo");
+    expect(document.getElementById).not.toHaveBeenCalled();
+    expect(image.image).toBeUndefined();
   });
 
   it("should handle image loading from URL", () => {
