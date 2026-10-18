@@ -48,7 +48,8 @@ function App() {
 
     // Initialize ShadesEngine with custom shape
     engineRef.current = new ShadesEngine(canvasRef.current, {
-      fadeDuration: 1000,
+      // Same as the Leva default, which only applies once the modal is closed
+      fadeDuration: 3000,
       debug: false,
       // No parallax while the intro modal is open
       interactions: {

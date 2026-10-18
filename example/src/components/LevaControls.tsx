@@ -16,14 +16,14 @@ function loadSavedControls(): Record<string, unknown> {
 const DEFAULTS = {
   isPlaying: true,
   debug: false,
-  fadeDuration: 1000,
+  fadeDuration: 3000,
   autoMove: true,
   path: "drift",
-  amplitude: 0.15,
+  amplitude: 0.3,
   speed: 1,
   resumeDelay: 5000,
   autoNext: true,
-  autoNextDelay: 10000,
+  autoNextDelay: 30000,
 };
 
 const initial = { ...DEFAULTS, ...loadSavedControls() };
