@@ -35,14 +35,16 @@ const DEFAULTS = {
 
 const initial = { ...DEFAULTS, ...loadSavedControls() };
 
-// Panel layout, top to bottom: play/next at the root, then the generation on
-// screen, transitions, auto move and settings (folders sorted by `order`)
+// Panel layout, top to bottom: Playing, the generation on screen, transitions,
+// auto move, settings, then the Next shape and Reset defaults buttons. Leva
+// sorts by `order`; buttons can't take one and stay at 0, hence the negative
+// orders above them
 const ORDER = {
-  root: -1,
-  currentShape: 1,
-  transitions: 2,
-  autoMove: 3,
-  settings: 4,
+  playing: -5,
+  currentShape: -4,
+  transitions: -3,
+  autoMove: -2,
+  settings: -1,
 };
 
 function useLevaControls() {
@@ -51,7 +53,7 @@ function useLevaControls() {
     isPlaying: {
       value: initial.isPlaying,
       label: "Playing",
-      order: ORDER.root,
+      order: ORDER.playing,
     },
     Transitions: folder(
       {
@@ -280,8 +282,6 @@ function useLevaEffects(
   const [resetTrigger, setResetTrigger] = useState(0);
   useControls({
     "Next shape": button(() => setNextTrigger((n) => n + 1)),
-  });
-  useControls("Settings", {
     "Reset defaults": button(() => setResetTrigger((n) => n + 1)),
   });
   useEffect(() => {
