@@ -101,6 +101,14 @@ describe("ShadesEngine options", () => {
       });
     });
 
+    it("draws the intro in introColor when given", () => {
+      const introColor: TShadeColor = { r: 193, g: 66, b: 93 };
+      const { engine } = createEngine({ introColor });
+      engine.generate();
+
+      expect(engine.getItems()[0].color).toEqual(introColor);
+    });
+
     it("skips the intro when intro is false", () => {
       const { engine } = createEngine({
         intro: false,

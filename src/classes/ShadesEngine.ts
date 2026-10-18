@@ -90,6 +90,8 @@ export type TShadesEngineOptions = {
   font?: string;
   /** Show the text intro before the first generation. Defaults to true. */
   intro?: boolean;
+  /** Color of the text intro. Defaults to a random color from HOME_COLORS. */
+  introColor?: TShadeColor;
   /** Generations played in order, one per click/next(). Fields left out are randomized. */
   presets?: TShadesPreset[];
   /** What happens once every preset was played: start over ("loop") or switch to random generations ("random", default). */
@@ -290,7 +292,8 @@ export class ShadesEngine {
 
     this.genItems(
       TextShape,
-      HOME_COLORS[random(0, HOME_COLORS.length - 1, true)],
+      this.options.introColor ??
+        HOME_COLORS[random(0, HOME_COLORS.length - 1, true)],
       true
     );
   }

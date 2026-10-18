@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.0
+
+### Added
+
+- `introColor` option: color of the text intro, instead of a random one
+  from `HOME_COLORS`.
+
 ## 1.0.0
 
 ### Added

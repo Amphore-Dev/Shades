@@ -114,6 +114,7 @@ interface TShadesEngineOptions {
   text?: string | string[]; // Text of text shapes (default: "SHADES")
   font?: string; // Font family of text shapes
   intro?: boolean; // Show the text intro first (default: true)
+  introColor?: TShadeColor; // Color of the text intro (default: random from HOME_COLORS)
   presets?: TShadesPreset[]; // Generations played in order
   presetsEnd?: "loop" | "random"; // After the last preset (default: "random")
   interactions?: TShadesEngineInteractions; // Enable, disable or override interactions
@@ -155,11 +156,13 @@ Each control can be disabled or overridden, see [Interactions](#interactions).
 
 `text` replaces the text drawn by text shapes. With an array, the intro uses
 the first string and every item of a text generation picks one at random.
+`introColor` sets the intro's color, random from `HOME_COLORS` otherwise.
 
 ```typescript
 new ShadesEngine(canvas, {
   text: ["AMPHORE", "SHADES", "HELLO"],
   font: "Remained",
+  introColor: { r: 247, g: 196, b: 141 },
 });
 ```
 
