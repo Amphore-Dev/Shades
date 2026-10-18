@@ -13,35 +13,48 @@ function loadSavedControls(): Record<string, unknown> {
   }
 }
 
-const saved = loadSavedControls();
+const DEFAULTS = {
+  isPlaying: true,
+  debug: false,
+  autoMove: true,
+  path: "drift",
+  amplitude: 0.15,
+  speed: 1,
+  resumeDelay: 5000,
+  autoNext: true,
+  autoNextDelay: 10000,
+};
+
+const initial = { ...DEFAULTS, ...loadSavedControls() };
 
 function useLevaControls() {
-  return useControls({
+  // Function form: also returns `set`, used by the reset button
+  return useControls(() => ({
     State: folder({
-      isPlaying: (saved.isPlaying as boolean) ?? true,
-      debug: (saved.debug as boolean) ?? false,
+      isPlaying: initial.isPlaying,
+      debug: initial.debug,
     }),
     "Auto move": folder(
       {
-        autoMove: (saved.autoMove as boolean) ?? true,
+        autoMove: initial.autoMove,
         path: {
-          value: (saved.path as string) ?? "drift",
+          value: initial.path,
           options: ["drift", "circle", "figure8"],
         },
         amplitude: {
-          value: (saved.amplitude as number) ?? 0.15,
+          value: initial.amplitude,
           min: 0,
           max: 0.5,
           step: 0.01,
         },
         speed: {
-          value: (saved.speed as number) ?? 1,
+          value: initial.speed,
           min: 0.1,
           max: 10,
           step: 0.1,
         },
         resumeDelay: {
-          value: (saved.resumeDelay as number) ?? 5000,
+          value: initial.resumeDelay,
           min: 0,
           max: 20000,
           step: 500,
@@ -51,9 +64,9 @@ function useLevaControls() {
     ),
     "Auto next": folder(
       {
-        autoNext: (saved.autoNext as boolean) ?? true,
+        autoNext: initial.autoNext,
         autoNextDelay: {
-          value: (saved.autoNextDelay as number) ?? 10000,
+          value: initial.autoNextDelay,
           min: 1000,
           max: 60000,
           step: 500,
@@ -61,7 +74,7 @@ function useLevaControls() {
       },
       { collapsed: false }
     ),
-  });
+  }));
 }
 
 /**
@@ -72,7 +85,7 @@ function useLevaEffects(
   engineRef: React.RefObject<ShadesEngine | null>,
   isModalOpen: boolean
 ) {
-  const controls = useLevaControls();
+  const [controls, setControls] = useLevaControls();
   const {
     isPlaying,
     debug,
@@ -86,13 +99,20 @@ function useLevaEffects(
   } = controls;
 
   const [nextTrigger, setNextTrigger] = useState(0);
+  const [resetTrigger, setResetTrigger] = useState(0);
   useControls({
     "Next shape": button(() => setNextTrigger((n) => n + 1)),
+    "Reset defaults": button(() => setResetTrigger((n) => n + 1)),
   });
   useEffect(() => {
     if (nextTrigger === 0) return;
     engineRef.current?.next();
   }, [nextTrigger, engineRef]);
+  // The persist effect below then saves the defaults
+  useEffect(() => {
+    if (resetTrigger === 0) return;
+    setControls(DEFAULTS);
+  }, [resetTrigger, setControls]);
 
   // Persist all control values to sessionStorage
   useEffect(() => {
