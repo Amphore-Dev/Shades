@@ -105,10 +105,13 @@ describe("UShadeUtils", () => {
 
     it("should calculate totalWidth and totalHeight correctly", () => {
       const config = genConfig();
+      // Items plus the gaps between them, none after the last one
       const expectedTotalWidth =
-        config.nbrItemsX * config.width + config.nbrItemsX * config.spacing;
+        config.nbrItemsX * config.width +
+        (config.nbrItemsX - 1) * config.spacing;
       const expectedTotalHeight =
-        config.nbrItemsY * config.height + config.nbrItemsY * config.spacing;
+        config.nbrItemsY * config.height +
+        (config.nbrItemsY - 1) * config.spacing;
 
       expect(config.totalWidth).toBe(expectedTotalWidth);
       expect(config.totalHeight).toBe(expectedTotalHeight);

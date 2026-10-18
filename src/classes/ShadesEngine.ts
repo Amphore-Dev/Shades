@@ -11,7 +11,13 @@ import {
   TShapeOptions,
 } from "../types/index.js";
 import { MAX_ITEMS_NBR, MAX_SHADES_NBR } from "../constants/index.js";
-import { genConfig, getRandColors, random } from "../utils/index.js";
+import {
+  genConfig,
+  getGridSize,
+  getItemPosition,
+  getRandColors,
+  random,
+} from "../utils/index.js";
 
 export type TShadesEngineDebugOptions = {
   className?: string;
@@ -374,10 +380,6 @@ export class ShadesEngine {
   private genItems(intro = false, newGeneration = true): void {
     const config = this.getConfig();
     const {
-      width,
-      height,
-      spacing,
-      spacingY = spacing,
       nbrItemsX,
       nbrItemsY,
       type,
@@ -415,13 +417,9 @@ export class ShadesEngine {
           font: this.options.font,
         };
 
+        const position = getItemPosition(config, x, y);
         items.push(
-          new ShadeConstructor(
-            x * width + x * spacing,
-            y * height + y * spacingY,
-            itemColor,
-            shapeOptions
-          )
+          new ShadeConstructor(position.x, position.y, itemColor, shapeOptions)
         );
       }
     }
@@ -433,8 +431,7 @@ export class ShadesEngine {
       fillFilter,
       colors,
       mainColor,
-      totalWidth: nbrItemsX * width + (nbrItemsX - 1) * spacing,
-      totalHeight: nbrItemsY * height + (nbrItemsY - 1) * spacingY,
+      ...getGridSize(config),
     };
 
     this.items = items;
@@ -656,24 +653,22 @@ export class ShadesEngine {
    * are kept. `spacingY` defaults to `spacingX`.
    */
   public setSpacing(spacingX: number, spacingY: number = spacingX): void {
-    const spacing = Math.max(spacingX, 0);
-    const gapY = Math.max(spacingY, 0);
-    const { width, height, nbrItemsX, nbrItemsY } = this.config;
-
-    // Items are built column by column: index = x * nbrItemsY + y
-    this.items.forEach((item, index) => {
-      const x = Math.floor(index / nbrItemsY);
-      const y = index % nbrItemsY;
-      item.position = { x: x * (width + spacing), y: y * (height + gapY) };
-    });
-
     this.config = {
       ...this.config,
-      spacing,
-      spacingY: gapY,
-      totalWidth: nbrItemsX * width + (nbrItemsX - 1) * spacing,
-      totalHeight: nbrItemsY * height + (nbrItemsY - 1) * gapY,
+      spacing: Math.max(spacingX, 0),
+      spacingY: Math.max(spacingY, 0),
     };
+    this.config = { ...this.config, ...getGridSize(this.config) };
+
+    // Items are built column by column: index = x * nbrItemsY + y
+    const { nbrItemsY } = this.config;
+    this.items.forEach((item, index) => {
+      item.position = getItemPosition(
+        this.config,
+        Math.floor(index / nbrItemsY),
+        index % nbrItemsY
+      );
+    });
   }
 
   /**

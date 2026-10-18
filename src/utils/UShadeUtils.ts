@@ -12,6 +12,31 @@ import { rgbToHex } from "./UColors.js";
 import { random } from "./UMaths.js";
 import { TShadesEngineOptions } from "../classes/ShadesEngine.js";
 
+type TGridConfig = Pick<
+  TShadeConfig,
+  "width" | "height" | "spacing" | "spacingY" | "nbrItemsX" | "nbrItemsY"
+>;
+
+/** Top-left corner of the item in column `x`, row `y`, from the grid origin. */
+export const getItemPosition = (
+  { width, height, spacing, spacingY = spacing }: TGridConfig,
+  x: number,
+  y: number
+) => ({ x: x * (width + spacing), y: y * (height + spacingY) });
+
+/** Size of the whole grid: the items and the gaps between them. */
+export const getGridSize = ({
+  width,
+  height,
+  spacing,
+  spacingY = spacing,
+  nbrItemsX,
+  nbrItemsY,
+}: TGridConfig) => ({
+  totalWidth: nbrItemsX * width + (nbrItemsX - 1) * spacing,
+  totalHeight: nbrItemsY * height + (nbrItemsY - 1) * spacingY,
+});
+
 export const genConfig = (
   options?: TShadesEngineOptions,
   forcedType?: TShadeType
@@ -50,8 +75,13 @@ export const genConfig = (
     height: size,
     spacing,
     thickness: random(1, 20, true),
-    totalWidth: nbrItemsX * size + nbrItemsX * spacing,
-    totalHeight: nbrItemsY * size + nbrItemsY * spacing,
+    ...getGridSize({
+      width: size,
+      height: size,
+      spacing,
+      nbrItemsX,
+      nbrItemsY,
+    }),
     gradRatio,
     center,
     type,
