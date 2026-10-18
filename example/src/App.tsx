@@ -51,6 +51,14 @@ function App() {
       // Same as the Leva default, which only applies once the modal is closed
       fadeDuration: 3000,
       debug: false,
+      // Single text item sized from the canvas, as before intro became a preset
+      intro: {
+        type: "text",
+        nbrItemsX: 1,
+        nbrItemsY: 1,
+        nbrShades: 10,
+        width: canvasRef.current.clientWidth / 6,
+      },
       // No parallax while the intro modal is open
       interactions: {
         mouseMove: (event, _engine, defaultHandler) => {

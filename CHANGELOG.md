@@ -1,11 +1,15 @@
 # Changelog
 
-## 1.1.0
+## 2.0.0
 
-### Added
+### Changed
 
-- `introColor` option: color of the text intro, instead of a random one
-  from `HOME_COLORS`.
+- **Breaking:** `intro` is now a preset (`TShadesPreset`) played as the first
+  generation, before `presets`, with every config field available (type,
+  colors, sizes…). Without `intro`, the engine starts straight with the
+  presets or random generations: the built-in "SHADES" text intro is gone.
+  To keep it, pass `intro: { type: "text", nbrItemsX: 1, nbrItemsY: 1,
+  nbrShades: 10, width: canvas.clientWidth / 6 }`.
 
 ## 1.0.0
 

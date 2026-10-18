@@ -113,8 +113,7 @@ interface TShadesEngineOptions {
   fadeDuration?: number; // Fade duration in milliseconds (default: 1000ms)
   text?: string | string[]; // Text of text shapes (default: "SHADES")
   font?: string; // Font family of text shapes
-  intro?: boolean; // Show the text intro first (default: true)
-  introColor?: TShadeColor; // Color of the text intro (default: random from HOME_COLORS)
+  intro?: TShadesPreset; // First generation, before the presets (default: none)
   presets?: TShadesPreset[]; // Generations played in order
   presetsEnd?: "loop" | "random"; // After the last preset (default: "random")
   interactions?: TShadesEngineInteractions; // Enable, disable or override interactions
@@ -156,13 +155,31 @@ Each control can be disabled or overridden, see [Interactions](#interactions).
 
 `text` replaces the text drawn by text shapes. With an array, the intro uses
 the first string and every item of a text generation picks one at random.
-`introColor` sets the intro's color, random from `HOME_COLORS` otherwise.
 
 ```typescript
 new ShadesEngine(canvas, {
   text: ["AMPHORE", "SHADES", "HELLO"],
   font: "Remained",
-  introColor: { r: 247, g: 196, b: 141 },
+});
+```
+
+## Intro
+
+`intro` is a preset played once, as the very first generation, before the
+`presets`. Like a preset, any field left out is randomized. Without it, the
+engine starts straight with the presets, or with random generations.
+
+```typescript
+new ShadesEngine(canvas, {
+  text: "AMPHORE",
+  intro: {
+    type: "text",
+    nbrItemsX: 1,
+    nbrItemsY: 1,
+    nbrShades: 10,
+    width: canvas.clientWidth / 6,
+    colors: [{ r: 247, g: 196, b: 141 }],
+  },
 });
 ```
 
@@ -176,7 +193,6 @@ switches to random generations (`"random"`, default).
 
 ```typescript
 new ShadesEngine(canvas, {
-  intro: true,
   presets: [
     { type: "logo", nbrShades: 30, thickness: 1 },
     {

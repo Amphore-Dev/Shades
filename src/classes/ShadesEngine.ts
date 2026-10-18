@@ -1,4 +1,4 @@
-import { ShadeItem, TextShape, ImageShape } from "./index.js";
+import { ShadeItem, ImageShape } from "./index.js";
 import {
   TPoint,
   TShadeColor,
@@ -9,7 +9,7 @@ import {
   TShadesPreset,
   TShapeOptions,
 } from "../types/index.js";
-import { HOME_COLORS, MAX_SHADES_NBR } from "../constants/index.js";
+import { MAX_SHADES_NBR } from "../constants/index.js";
 import { genConfig, getRandColors, random } from "../utils/index.js";
 
 export type TShadesEngineDebugOptions = {
@@ -48,7 +48,7 @@ export type TShadesEngineInteractions = {
 };
 
 export type TShadesGenerationInfo = {
-  /** 0-based generation index (the intro is generation 0 when enabled). */
+  /** 0-based generation index (the intro, when given, is generation 0). */
   generation: number;
   intro: boolean;
   /** Index of the preset used, or `null` for the intro / a random generation. */
@@ -88,10 +88,8 @@ export type TShadesEngineOptions = {
   text?: string | string[];
   /** Font family used by text shapes. */
   font?: string;
-  /** Show the text intro before the first generation. Defaults to true. */
-  intro?: boolean;
-  /** Color of the text intro. Defaults to a random color from HOME_COLORS. */
-  introColor?: TShadeColor;
+  /** First generation, before the presets. Fields left out are randomized. Without it, the engine starts with the presets (or random generations). */
+  intro?: TShadesPreset;
   /** Generations played in order, one per click/next(). Fields left out are randomized. */
   presets?: TShadesPreset[];
   /** What happens once every preset was played: start over ("loop") or switch to random generations ("random", default). */
@@ -274,28 +272,17 @@ export class ShadesEngine {
   }
 
   private initDefaultGeneration(): void {
-    if (this.options.intro === false) {
+    const { intro } = this.options;
+
+    if (!intro) {
       this.applyNextConfig();
       this.genItems();
       return;
     }
 
-    this.config = {
-      ...this.config,
-      nbrItemsX: 1,
-      nbrItemsY: 1,
-      nbrShades: 10,
-      gradRatio: 100 / 10,
-      width: this.canvas.clientWidth / 6,
-      height: this.canvas.clientWidth / 6,
-    };
-
-    this.genItems(
-      TextShape,
-      this.options.introColor ??
-        HOME_COLORS[random(0, HOME_COLORS.length - 1, true)],
-      true
-    );
+    this.currentPresetIndex = null;
+    this.applyPreset(intro);
+    this.genItems(undefined, undefined, true);
   }
 
   /**
@@ -322,7 +309,11 @@ export class ShadesEngine {
 
     this.currentPresetIndex = this.presetCursor;
     this.presetCursor++;
+    this.applyPreset(preset);
+  }
 
+  /** Sets the config from a preset, randomizing the fields it leaves out. */
+  private applyPreset(preset: TShadesPreset): void {
     const config: TShadeConfig = {
       ...this.genConfig(preset.type),
       ...preset,

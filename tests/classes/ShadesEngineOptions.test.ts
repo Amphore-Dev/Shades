@@ -4,7 +4,7 @@ import {
 } from "../../src/classes/ShadesEngine";
 import { TextShape } from "../../src/classes/shapes/TextShape";
 import { ShadeItem } from "../../src/classes/shapes/BaseShape";
-import { TShadeColor, TShapeOptions } from "../../src/types";
+import { TShadeColor, TShadesPreset, TShapeOptions } from "../../src/types";
 import { MAX_SHADES_NBR } from "../../src/constants";
 
 // Without document.fonts, generate() runs the first generation synchronously
@@ -32,6 +32,9 @@ const createEngine = (options: TShadesEngineOptions = {}) => {
   return { canvas, engine };
 };
 
+// A single text item, like the former built-in intro
+const TEXT_INTRO: TShadesPreset = { type: "text", nbrItemsX: 1, nbrItemsY: 1 };
+
 // Plays the next generation without waiting for the fade out
 const advance = (engine: ShadesEngine) => {
   engine.next();
@@ -41,7 +44,7 @@ const advance = (engine: ShadesEngine) => {
 describe("ShadesEngine options", () => {
   describe("text", () => {
     it("uses the given string for the intro", () => {
-      const { engine } = createEngine({ text: "AMPHORE" });
+      const { engine } = createEngine({ text: "AMPHORE", intro: TEXT_INTRO });
       engine.generate();
 
       const [item] = engine.getItems() as TextShape[];
@@ -49,7 +52,10 @@ describe("ShadesEngine options", () => {
     });
 
     it("uses the first string of an array for the intro", () => {
-      const { engine } = createEngine({ text: ["FIRST", "SECOND"] });
+      const { engine } = createEngine({
+        text: ["FIRST", "SECOND"],
+        intro: TEXT_INTRO,
+      });
       engine.generate();
 
       const [item] = engine.getItems() as TextShape[];
@@ -60,7 +66,6 @@ describe("ShadesEngine options", () => {
       const texts = ["A", "B", "C"];
       const { engine } = createEngine({
         text: texts,
-        intro: false,
         presets: [{ type: "text", nbrItemsX: 5, nbrItemsY: 5 }],
       });
       engine.generate();
@@ -71,7 +76,7 @@ describe("ShadesEngine options", () => {
     });
 
     it("keeps the default text when no text option is given", () => {
-      const { engine } = createEngine();
+      const { engine } = createEngine({ intro: TEXT_INTRO });
       engine.generate();
 
       const [item] = engine.getItems() as TextShape[];
@@ -79,7 +84,7 @@ describe("ShadesEngine options", () => {
     });
 
     it("passes the font option to text shapes", () => {
-      const { engine } = createEngine({ font: "Arial" });
+      const { engine } = createEngine({ font: "Arial", intro: TEXT_INTRO });
       engine.generate();
 
       const [item] = engine.getItems() as TextShape[];
@@ -88,35 +93,53 @@ describe("ShadesEngine options", () => {
   });
 
   describe("intro", () => {
-    it("starts with the text intro by default", () => {
+    it("starts with the presets when no intro is given", () => {
       const onGenerate = jest.fn();
-      const { engine } = createEngine({ onGenerate });
+      const { engine } = createEngine({
+        presets: [{ type: "square" }],
+        onGenerate,
+      });
       engine.generate();
 
-      expect(engine.getItems()[0]).toBeInstanceOf(TextShape);
+      expect(engine.getShadesConfig().type).toBe("square");
+      expect(onGenerate).toHaveBeenCalledWith(expect.any(Object), {
+        generation: 0,
+        intro: false,
+        presetIndex: 0,
+      });
+    });
+
+    it("plays the intro preset first, then the presets", () => {
+      const onGenerate = jest.fn();
+      const color: TShadeColor = { r: 193, g: 66, b: 93 };
+      const { engine } = createEngine({
+        intro: { ...TEXT_INTRO, colors: [color], nbrShades: 10 },
+        presets: [{ type: "square" }],
+        onGenerate,
+      });
+      engine.generate();
+
+      const [item] = engine.getItems();
+      expect(item).toBeInstanceOf(TextShape);
+      expect(item.color).toEqual(color);
+      expect(engine.getShadesConfig().nbrShades).toBe(10);
       expect(onGenerate).toHaveBeenCalledWith(expect.any(Object), {
         generation: 0,
         intro: true,
         presetIndex: null,
       });
-    });
 
-    it("draws the intro in introColor when given", () => {
-      const introColor: TShadeColor = { r: 193, g: 66, b: 93 };
-      const { engine } = createEngine({ introColor });
-      engine.generate();
-
-      expect(engine.getItems()[0].color).toEqual(introColor);
-    });
-
-    it("skips the intro when intro is false", () => {
-      const { engine } = createEngine({
-        intro: false,
-        presets: [{ type: "square" }],
-      });
-      engine.generate();
-
+      advance(engine);
       expect(engine.getShadesConfig().type).toBe("square");
+    });
+
+    it("randomizes the intro fields left out", () => {
+      const { engine } = createEngine({ intro: { type: "circle" } });
+      engine.generate();
+
+      const config = engine.getShadesConfig();
+      expect(config.type).toBe("circle");
+      expect(config.nbrShades).toBeGreaterThan(0);
     });
   });
 
@@ -127,7 +150,7 @@ describe("ShadesEngine options", () => {
     ];
 
     it("plays presets in order after the intro", () => {
-      const { engine } = createEngine({ presets });
+      const { engine } = createEngine({ presets, intro: TEXT_INTRO });
       engine.generate();
 
       advance(engine);
@@ -146,7 +169,11 @@ describe("ShadesEngine options", () => {
 
     it("switches to random generations after the last preset by default", () => {
       const onGenerate = jest.fn();
-      const { engine } = createEngine({ presets, onGenerate });
+      const { engine } = createEngine({
+        presets,
+        onGenerate,
+        intro: TEXT_INTRO,
+      });
       engine.generate();
 
       advance(engine);
@@ -166,6 +193,7 @@ describe("ShadesEngine options", () => {
         presets,
         presetsEnd: "loop",
         onGenerate,
+        intro: TEXT_INTRO,
       });
       engine.generate();
 
@@ -184,6 +212,7 @@ describe("ShadesEngine options", () => {
     it("keeps preset colors on every generation", () => {
       const colors = [{ r: 1, g: 2, b: 3 }];
       const { engine } = createEngine({
+        intro: TEXT_INTRO,
         presets: [
           { type: "square", colors },
           { type: "square", colors },
@@ -204,7 +233,6 @@ describe("ShadesEngine options", () => {
 
     it("uses logo defaults when the preset only sets a logo type", () => {
       const { engine } = createEngine({
-        intro: false,
         presets: [{ type: "logo" }],
         customShapes: { logo: TextShape },
       });
@@ -254,6 +282,7 @@ describe("ShadesEngine options", () => {
 
     it("lets a custom handler fall back to the default behavior", () => {
       const { canvas, engine } = createEngine({
+        intro: TEXT_INTRO,
         interactions: {
           wheel: (event, _engine, defaultHandler) => defaultHandler(event),
         },
@@ -634,19 +663,12 @@ describe("ShadesEngine options", () => {
     };
 
     it("centers every generation on the canvas", () => {
-      const engine = createSmallCanvasEngine({ intro: false });
+      const engine = createSmallCanvasEngine();
       engine.generate();
       expect(engine.getShadesConfig().center).toEqual({ x: 200, y: 100 });
 
       advance(engine);
       expect(engine.getShadesConfig().center).toEqual({ x: 200, y: 100 });
-    });
-
-    it("sizes the intro from the canvas width", () => {
-      const engine = createSmallCanvasEngine();
-      engine.generate();
-
-      expect(engine.getShadesConfig().width).toBeCloseTo(400 / 6);
     });
 
     it("measures the pointer from the canvas center", () => {
@@ -759,7 +781,6 @@ describe("ShadesEngine options", () => {
 
     it("accepts a class extending ShadeItem", () => {
       const { engine } = createEngine({
-        intro: false,
         customShapes: { star: StarShape },
         presets: [{ type: "star", nbrItemsX: 1, nbrItemsY: 1 }],
       });
