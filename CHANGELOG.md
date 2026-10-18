@@ -16,8 +16,7 @@
   generation, before `presets`, with every config field available (type,
   colors, sizes…). Without `intro`, the engine starts straight with the
   presets or random generations: the built-in "SHADES" text intro is gone.
-  To keep it, pass `intro: { type: "text", nbrItemsX: 1, nbrItemsY: 1,
-nbrShades: 10, width: canvas.clientWidth / 6 }`.
+  To keep it, pass the text intro shown in the README's Intro section.
 
 ## 1.0.0
 
