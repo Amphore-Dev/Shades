@@ -34,7 +34,7 @@ function App() {
     setIsModalOpen(false);
     isModalOpenRef.current = false;
     // Recenter the parallax, then drift on its own 5s after the last
-    // mouse/touch move, and change shape every 5s
+    // mouse/touch move, and change shape every 5s while drifting
     engineRef.current?.setTargetOffset();
     engineRef.current?.setAutoMove({ resumeDelay: 5000 });
     engineRef.current?.setAutoNext(5000);

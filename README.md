@@ -221,7 +221,9 @@ new ShadesEngine(canvas, {
 like the macOS screensaver, with a random starting point for each engine.
 It starts `resumeDelay` ms after `start()`. Mouse and touch moves still take
 over; auto-move resumes `resumeDelay` ms after the last one. It stays off when the user prefers reduced motion.
-Combine it with `autoNext` for a hands-free, screensaver-like display.
+Combine it with `autoNext` for a hands-free, screensaver-like display:
+generations then only change while auto-moving, `autoNext` ms after
+auto-move took over, so they never change under the user's pointer.
 
 ```typescript
 new ShadesEngine(canvas, {

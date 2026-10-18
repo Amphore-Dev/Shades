@@ -430,6 +430,30 @@ describe("ShadesEngine options", () => {
       expect(next).toHaveBeenCalledTimes(1);
     });
 
+    it("waits for auto-move, then counts from when it took over", () => {
+      const { engine } = createEngine({
+        autoMove: { resumeDelay: 1000 },
+        autoNext: 2000,
+      });
+      engine.generate();
+      const next = jest.spyOn(engine, "next");
+      (engine as any).fade.isFading = false;
+      (engine as any).isPlaying = true;
+
+      // Generated at 0, pointer moved at 10000: auto-move from 11000
+      now = 10000;
+      (engine as any).lastGenerationTime = 0;
+      (engine as any).handleMouseMove({ clientX: 0, clientY: 0 });
+
+      now = 12000;
+      (engine as any).animate();
+      expect(next).not.toHaveBeenCalled();
+
+      now = 13001;
+      (engine as any).animate();
+      expect(next).toHaveBeenCalledTimes(1);
+    });
+
     it("plays the next generation once the delay is elapsed", () => {
       const { engine } = createEngine({ autoNext: 5000 });
       engine.generate();

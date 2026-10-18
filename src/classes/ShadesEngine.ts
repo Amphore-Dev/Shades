@@ -88,7 +88,11 @@ export type TShadesEngineOptions = {
    * Disabled when the user prefers reduced motion.
    */
   autoMove?: boolean | TShadesAutoMoveOptions;
-  /** Plays the next generation automatically every `autoNext` ms. */
+  /**
+   * Plays the next generation automatically every `autoNext` ms. With
+   * `autoMove`, it only runs while auto-moving, counted from when auto-move
+   * took over.
+   */
   autoNext?: number;
 };
 
@@ -451,11 +455,21 @@ export class ShadesEngine {
       }
     }
 
+    // With auto-move, auto-next only runs while auto-moving, counted from
+    // when auto-move took over
+    const autoNextFrom = this.autoMove
+      ? Math.max(
+          this.lastGenerationTime,
+          this.lastPointerMoveTime + this.autoMove.resumeDelay
+        )
+      : this.lastGenerationTime;
+
     if (
       this.options.autoNext &&
       this.genCount > 0 &&
       !this.fade.isFading &&
-      start - this.lastGenerationTime > this.options.autoNext
+      (!this.autoMove || isAutoMoving) &&
+      start - autoNextFrom > this.options.autoNext
     ) {
       this.next();
     }
