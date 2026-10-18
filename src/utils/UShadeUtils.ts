@@ -56,8 +56,6 @@ export const genConfig = (
     height: size,
     spacing,
     thickness: random(1, 20, true),
-    offsetX: 0,
-    offsetY: 0,
     totalWidth: nbrItemsX * size + nbrItemsX * spacing,
     totalHeight: nbrItemsY * size + nbrItemsY * spacing,
     gradRatio,

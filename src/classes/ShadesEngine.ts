@@ -1,4 +1,4 @@
-import { ShadeItem, ImageShape } from "./index.js";
+import { ShadeItem } from "./index.js";
 import {
   TPoint,
   TShadeColor,
@@ -290,7 +290,7 @@ export class ShadesEngine {
 
     this.currentPresetIndex = null;
     this.applyPreset(intro);
-    this.genItems(undefined, undefined, true);
+    this.genItems(true);
   }
 
   /**
@@ -370,12 +370,7 @@ export class ShadesEngine {
    * default) is counted and reported to onGenerate; a rebuild of the current
    * one (`newGeneration: false`) is not.
    */
-  private genItems(
-    constructor?: TShadeTypeConstructor,
-    forceColor?: TShadeColor | TShadeColor[],
-    intro = false,
-    newGeneration = true
-  ): void {
+  private genItems(intro = false, newGeneration = true): void {
     const config = this.getConfig();
     const {
       width,
@@ -392,22 +387,13 @@ export class ShadesEngine {
     } = config;
 
     const items: ShadeItem[] = [];
-    const colors = configColors?.length
-      ? configColors
-      : Array.isArray(forceColor)
-        ? forceColor
-        : getRandColors(type);
-
-    const color =
-      forceColor && !Array.isArray(forceColor) ? forceColor : undefined;
+    const colors = configColors?.length ? configColors : getRandColors(type);
 
     const mainColor =
       configMainColor ?? colors[random(0, colors.length - 1, true)];
 
     const ShadeConstructor =
-      constructor ??
-      this.options.customShapes?.[type] ??
-      SHADES_TYPES_CONSTRUCTORS_LIST[type];
+      this.options.customShapes?.[type] ?? SHADES_TYPES_CONSTRUCTORS_LIST[type];
 
     for (let x = 0; x < nbrItemsX; x++) {
       for (let y = 0; y < nbrItemsY; y++) {
@@ -415,19 +401,18 @@ export class ShadesEngine {
         const itemColor = colors[index];
         // Text options are ignored by non-text shapes
         const shapeOptions: TShapeOptions & { text?: string; font?: string } = {
-          filled: fillFilter?.(mainColor, color ?? itemColor),
-          rotation: rotationFilter?.(mainColor, color ?? itemColor),
+          filled: fillFilter?.(mainColor, itemColor),
+          rotation: rotationFilter?.(mainColor, itemColor),
           lineCap: config.lineCap,
           text: this.pickText(intro),
           font: this.options.font,
-          ...(constructor === ImageShape ? { imageSource: undefined } : {}),
         };
 
         items.push(
           new ShadeConstructor(
             x * width + x * spacing,
             y * height + y * spacingY,
-            color ?? itemColor,
+            itemColor,
             shapeOptions
           )
         );
@@ -640,7 +625,7 @@ export class ShadesEngine {
   /** Rebuilds the current generation's items from the updated config. */
   private rebuildItems(changes: Partial<TShadeConfig>): void {
     this.config = { ...this.config, ...changes };
-    this.genItems(undefined, undefined, this.isIntroGeneration, false);
+    this.genItems(this.isIntroGeneration, false);
   }
 
   /**
@@ -873,11 +858,6 @@ export class ShadesEngine {
   /** Fades out and plays the next generation (next preset or random). */
   public next(): void {
     this.handleClick();
-  }
-
-  /** @deprecated Use `next()`. */
-  public regenerate(): void {
-    this.next();
   }
 
   public getShadesConfig(): TShadeConfig {

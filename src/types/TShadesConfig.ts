@@ -19,8 +19,6 @@ export type TShadeConfig = {
   nbrShades: number;
   nbrItemsX: number;
   nbrItemsY: number;
-  offsetX: number;
-  offsetY: number;
   center: TPoint;
   totalWidth: number;
   totalHeight: number;

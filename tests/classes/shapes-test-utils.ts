@@ -52,8 +52,6 @@ export function createTestConfig(): TShadeConfig {
     nbrItemsY: 5,
     spacing: 10,
     thickness: 2,
-    offsetX: 0,
-    offsetY: 0,
     type: "circle",
     colors: [createTestColor()],
     rotationFilter: () => true,

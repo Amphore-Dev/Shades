@@ -131,7 +131,6 @@ interface TShadesEngineOptions {
 | `start()`                    | Start animation                                           |
 | `pause()`                    | Pause animation                                           |
 | `next()`                     | Play the next generation                                  |
-| `regenerate()`               | Deprecated alias of `next()`                              |
 | `destroy()`                  | Cleanup and remove event listeners                        |
 | `setShadesCount(count)`      | Set the number of shades                                  |
 | `adjustShadesCount(delta)`   | Add to the number of shades                               |

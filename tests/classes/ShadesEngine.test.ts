@@ -240,9 +240,9 @@ describe("ShadesEngine", () => {
       expect(engine.getItems()).toHaveLength(0);
     });
 
-    it("should trigger regeneration", () => {
+    it("should trigger the next generation", () => {
       expect(() => {
-        engine.regenerate();
+        engine.next();
       }).not.toThrow();
     });
 
