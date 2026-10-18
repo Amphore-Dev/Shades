@@ -18,6 +18,20 @@ export class ShadeItem {
   type: TShadeType = "circle";
   filled: boolean = false;
   lineCap: "butt" | "round" | "square" = "butt";
+  /**
+   * Asks the engine to redraw: it skips frames where nothing changes, so a
+   * shape whose look changes on its own (an image that finishes loading…)
+   * must call it. Set by the engine.
+   */
+  requestRender: () => void = () => {};
+
+  /**
+   * Whether the shape changes on every draw by itself (like a rotating
+   * one): the engine then keeps drawing every frame.
+   */
+  isAnimated(): boolean {
+    return false;
+  }
 
   constructor(
     x: number,

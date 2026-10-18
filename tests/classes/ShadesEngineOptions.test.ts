@@ -577,6 +577,84 @@ describe("ShadesEngine options", () => {
     });
   });
 
+  describe("idle frames", () => {
+    beforeEach(() => {
+      global.requestAnimationFrame = jest.fn(() => 1);
+    });
+
+    // Generated, faded in and settled: nothing left to animate
+    const createSettledEngine = (
+      preset: TShadesPreset = { type: "square" }
+    ) => {
+      const { engine } = createEngine({ presets: [preset] });
+      engine.generate();
+      const internal = engine as any;
+      internal.fade = { ...internal.fade, isFading: false, opacity: 1 };
+      internal.isPlaying = true;
+      const draw = jest.spyOn(internal, "draw");
+      return { engine, internal, draw };
+    };
+
+    it("draws once, then skips frames where nothing changes", () => {
+      const { internal, draw } = createSettledEngine();
+
+      internal.animate();
+      internal.animate();
+      internal.animate();
+
+      expect(draw).toHaveBeenCalledTimes(1);
+    });
+
+    it("draws again after a change of the current generation", () => {
+      const { engine, internal, draw } = createSettledEngine();
+      internal.animate();
+
+      engine.setShadesCount(5);
+      internal.animate();
+      engine.setSpacing(4);
+      internal.animate();
+      internal.animate();
+
+      expect(draw).toHaveBeenCalledTimes(3);
+    });
+
+    it("draws while the offset moves, then stops once settled", () => {
+      const { engine, internal, draw } = createSettledEngine();
+      internal.animate();
+
+      engine.setTargetOffset({ x: 100, y: 0 });
+      for (let i = 0; i < 200; i++) internal.animate();
+      const drawsWhileMoving = draw.mock.calls.length;
+      internal.animate();
+
+      expect(drawsWhileMoving).toBeGreaterThan(2);
+      expect(draw).toHaveBeenCalledTimes(drawsWhileMoving);
+    });
+
+    it("keeps drawing every frame while items rotate", () => {
+      const { internal, draw } = createSettledEngine({
+        type: "triangle",
+        rotationFilter: () => true,
+      });
+
+      internal.animate();
+      internal.animate();
+      internal.animate();
+
+      expect(draw).toHaveBeenCalledTimes(3);
+    });
+
+    it("draws again when an item requests it", () => {
+      const { engine, internal, draw } = createSettledEngine();
+      internal.animate();
+
+      engine.getItems()[0].requestRender();
+      internal.animate();
+
+      expect(draw).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe("autoNext", () => {
     let now = 0;
 

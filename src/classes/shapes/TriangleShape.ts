@@ -18,6 +18,10 @@ export class TriangleShape extends ShadeItem {
     this.angle = degToRad(90);
   }
 
+  isAnimated(): boolean {
+    return this.rotation;
+  }
+
   draw = (
     ctx: CanvasRenderingContext2D,
     config: TShadeConfig,

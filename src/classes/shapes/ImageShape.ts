@@ -47,6 +47,7 @@ export class ImageShape extends ShadeItem {
       if (!this.hasImageLoaded) {
         imageSource.onload = () => {
           this.hasImageLoaded = true;
+          this.requestRender();
         };
       }
     } else {
@@ -60,6 +61,7 @@ export class ImageShape extends ShadeItem {
     img.crossOrigin = "anonymous"; // Enable CORS if needed
     img.onload = () => {
       this.hasImageLoaded = true;
+      this.requestRender();
     };
     img.onerror = () => {
       console.warn(`Failed to load image from URL: ${url}`);
@@ -74,6 +76,7 @@ export class ImageShape extends ShadeItem {
       const img = new Image();
       img.onload = () => {
         this.hasImageLoaded = true;
+        this.requestRender();
       };
       img.onerror = () => {
         console.warn("Failed to load SVG element as image");

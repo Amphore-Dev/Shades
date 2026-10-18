@@ -147,6 +147,10 @@ export class ShadesEngine {
   // Drawn into while fading, then copied at the fade opacity: fading the
   // whole frame keeps overlapping layers as they are, on any background
   private fadeBuffer: HTMLCanvasElement | null = null;
+  // Frames are only drawn when something changed or moves: set by any change
+  // of the items or config, cleared once drawn
+  private needsRender = true;
+  private hasAnimatedItems = false;
   private fade = {
     isFading: true,
     opacity: 0,
@@ -438,6 +442,13 @@ export class ShadesEngine {
     };
 
     this.items = items;
+    this.hasAnimatedItems = items.some((item) => item.isAnimated());
+    items.forEach((item) => {
+      item.requestRender = () => {
+        this.needsRender = true;
+      };
+    });
+    this.needsRender = true;
     if (!newGeneration) return;
 
     this.isIntroGeneration = intro;
@@ -458,7 +469,6 @@ export class ShadesEngine {
     const start = performance.now();
 
     this.stepFade();
-    this.draw();
 
     // Auto-move drives the offset unless the pointer moved recently
     const isAutoMoving =
@@ -477,6 +487,8 @@ export class ShadesEngine {
       this.targetOffset = this.getAutoMoveOffset();
     }
 
+    const previousOffset = this.offset;
+
     // Smooth offset animation, slower while auto-moving for a softer drift
     const step = isAutoMoving ? 0.02 : 0.1;
     this.offset = {
@@ -494,6 +506,20 @@ export class ShadesEngine {
       ) < 0.5
     ) {
       this.offset = { ...this.targetOffset };
+    }
+
+    const isMoving =
+      this.offset.x !== previousOffset.x || this.offset.y !== previousOffset.y;
+
+    // Animated items (rotating ones…) change on every draw: every frame
+    if (
+      this.needsRender ||
+      this.fade.isFading ||
+      isMoving ||
+      this.hasAnimatedItems
+    ) {
+      this.draw();
+      this.needsRender = false;
     }
 
     // With auto-move, auto-next only runs while auto-moving, counted from
@@ -653,6 +679,7 @@ export class ShadesEngine {
       nbrShades,
       gradRatio: 100 / nbrShades,
     };
+    this.needsRender = true;
   }
 
   /** Rebuilds the current generation's items from the updated config. */
@@ -698,6 +725,7 @@ export class ShadesEngine {
         index % nbrItemsY
       );
     });
+    this.needsRender = true;
   }
 
   /**
@@ -758,6 +786,7 @@ export class ShadesEngine {
     };
 
     this.offset = { x: 0, y: 0 };
+    this.needsRender = true;
   }
 
   private attachEventListeners(): void {
@@ -850,6 +879,7 @@ export class ShadesEngine {
     if (this.isPlaying) return;
 
     this.isPlaying = true;
+    this.needsRender = true;
     // Auto-move waits resumeDelay before its first drift, as after a pointer move
     this.lastPointerMoveTime = performance.now();
     this.animate();

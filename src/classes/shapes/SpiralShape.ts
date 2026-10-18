@@ -17,6 +17,10 @@ export class SpiralShape extends ShadeItem {
     this.angle = 0;
   }
 
+  isAnimated(): boolean {
+    return this.rotation;
+  }
+
   draw = (
     ctx: CanvasRenderingContext2D,
     config: TShadeConfig,
