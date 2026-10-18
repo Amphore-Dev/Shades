@@ -587,4 +587,28 @@ describe("ShadesEngine options", () => {
       jest.restoreAllMocks();
     });
   });
+  describe("FPS counter", () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+      global.requestAnimationFrame = jest.fn(() => 1);
+      global.cancelAnimationFrame = jest.fn();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it("runs a single interval across start/pause cycles", () => {
+      const { engine } = createEngine();
+
+      engine.start();
+      engine.pause();
+      engine.start();
+      engine.start();
+      expect(jest.getTimerCount()).toBe(1);
+
+      engine.destroy();
+      expect(jest.getTimerCount()).toBe(0);
+    });
+  });
 });

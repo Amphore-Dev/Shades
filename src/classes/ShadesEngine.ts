@@ -147,6 +147,7 @@ export class ShadesEngine {
   private isPlaying = false;
   private elapsedTime = 1;
   private framesCount = { count: 0, fps: 0 };
+  private fpsIntervalId: ReturnType<typeof setInterval> | null = null;
   private lastPinchDistance: number | null = null; // For pinch to adjust shades on touch devices
 
   // Event handlers attached by attachEventListeners, kept for removal
@@ -717,6 +718,7 @@ export class ShadesEngine {
   public pause(): void {
     this.isPlaying = false;
     this.lastFrameTime = null;
+    this.stopFPSCounter();
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = null;
@@ -831,12 +833,21 @@ export class ShadesEngine {
   }
 
   private startFPSCounter(): void {
-    setInterval(() => {
+    if (this.fpsIntervalId !== null) return;
+
+    this.fpsIntervalId = setInterval(() => {
       this.framesCount = {
         count: 0,
         fps: this.framesCount.count,
       };
     }, 1000);
+  }
+
+  private stopFPSCounter(): void {
+    if (this.fpsIntervalId === null) return;
+
+    clearInterval(this.fpsIntervalId);
+    this.fpsIntervalId = null;
   }
 
   private updateDebug(): void {
