@@ -231,7 +231,7 @@ function useCurrentShapeControls(
   useEffect(() => {
     const engine = engineRef.current;
     if (randomColorsTrigger === 0 || !engine) return;
-    const colors = getRandColors(engine.getShadesConfig().type);
+    const colors = getRandColors();
     engine.setColors(colors);
     setShape({ colors: colors.map(toHex).join(", ") });
   }, [randomColorsTrigger, engineRef, setShape]);

@@ -6,6 +6,7 @@ import {
   SHADES_TYPES_CONSTRUCTORS_LIST,
   TShadeTypeConstructor,
   TShadeType,
+  TBuiltinShadeType,
   TShadesPreset,
   TShapeOptions,
 } from "../types/index.js";
@@ -387,13 +388,19 @@ export class ShadesEngine {
     } = config;
 
     const items: ShadeItem[] = [];
-    const colors = configColors?.length ? configColors : getRandColors(type);
+    const colors = configColors?.length ? configColors : getRandColors();
 
     const mainColor =
       configMainColor ?? colors[random(0, colors.length - 1, true)];
 
     const ShadeConstructor =
-      this.options.customShapes?.[type] ?? SHADES_TYPES_CONSTRUCTORS_LIST[type];
+      this.options.customShapes?.[type] ??
+      SHADES_TYPES_CONSTRUCTORS_LIST[type as TBuiltinShadeType];
+    if (!ShadeConstructor) {
+      throw new Error(
+        `Shades: unknown shape type "${type}". Use a built-in type or register it in customShapes.`
+      );
+    }
 
     for (let x = 0; x < nbrItemsX; x++) {
       for (let y = 0; y < nbrItemsY; y++) {

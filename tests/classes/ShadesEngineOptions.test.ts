@@ -262,16 +262,10 @@ describe("ShadesEngine options", () => {
         .forEach((item) => expect(item.color).toEqual(colors[0]));
     });
 
-    it("uses logo defaults when the preset only sets a logo type", () => {
-      const { engine } = createEngine({
-        presets: [{ type: "logo" }],
-        customShapes: { logo: TextShape },
-      });
-      engine.generate();
+    it("throws a clear error for an unknown shape type", () => {
+      const { engine } = createEngine({ presets: [{ type: "cirle" }] });
 
-      const config = engine.getShadesConfig();
-      expect(config.nbrItemsX).toBe(1);
-      expect(config.nbrShades).toBe(MAX_SHADES_NBR);
+      expect(() => engine.generate()).toThrow('unknown shape type "cirle"');
     });
   });
 
