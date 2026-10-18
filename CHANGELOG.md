@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.0.1
+
+### Fixed
+
+- Text could stay drawn with a fallback font: a font only used on the
+  canvas isn't downloaded by the browser, and still frames are no longer
+  redrawn once it arrives. `generate()` now loads the `font` option before
+  the first generation, and the engine redraws whenever a font finishes
+  loading.
+
 ## 2.0.0
 
 ### Added

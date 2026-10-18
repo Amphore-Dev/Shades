@@ -59,6 +59,11 @@ export class InteractionBinder {
     const handler = this.resolve(key, defaultHandler);
     if (!handler) return;
 
+    this.listen(target, type, handler);
+  }
+
+  /** Attaches an internal listener (not a user interaction), removed by `detach()`. */
+  listen(target: EventTarget, type: string, handler: EventListener): void {
     target.addEventListener(type, handler);
     this.listeners.push({ target, type, handler });
   }
