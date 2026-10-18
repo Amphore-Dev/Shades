@@ -230,6 +230,7 @@ describe("ShadesEngine", () => {
     });
 
     it("should cleanup engine state on destroy", () => {
+      engine.generate();
       engine.start();
       engine.destroy();
 

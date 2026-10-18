@@ -6,6 +6,8 @@ import {
   SHADES_TYPES_CONSTRUCTORS_LIST,
   TShadeTypeConstructor,
   TShadeType,
+  TShadesPreset,
+  TShapeOptions,
 } from "../types/index.js";
 import { HOME_COLORS, MAX_SHADES_NBR } from "../constants/index.js";
 import { genConfig, getRandColors, random } from "../utils/index.js";
@@ -14,11 +16,63 @@ export type TShadesEngineDebugOptions = {
   className?: string;
 };
 
+/** Event type received by each interaction. */
+export type TShadesInteractionEvents = {
+  click: MouseEvent;
+  wheel: WheelEvent;
+  mouseMove: MouseEvent;
+  touchMove: TouchEvent;
+  resize: UIEvent;
+};
+
+/**
+ * Replaces the engine's default behavior for an interaction.
+ * Call `defaultHandler(event)` to keep (or wrap) the built-in behavior.
+ */
+export type TShadesInteractionHandler<E extends Event> = (
+  event: E,
+  engine: ShadesEngine,
+  defaultHandler: (event: E) => void
+) => void;
+
+/** `true` (default): built-in behavior, `false`: disabled, function: custom handler. */
+export type TShadesInteraction<E extends Event> =
+  | boolean
+  | TShadesInteractionHandler<E>;
+
+export type TShadesEngineInteractions = {
+  [K in keyof TShadesInteractionEvents]?: TShadesInteraction<
+    TShadesInteractionEvents[K]
+  >;
+};
+
+export type TShadesGenerationInfo = {
+  /** 0-based generation index (the intro is generation 0 when enabled). */
+  generation: number;
+  intro: boolean;
+  /** Index of the preset used, or `null` for the intro / a random generation. */
+  presetIndex: number | null;
+};
+
 export type TShadesEngineOptions = {
   shapes?: TShadeType[]; // Allows specifying a list of shape types to use for each generation (e.g., ["circle", "square"])
   customShapes?: Record<string, TShadeTypeConstructor>; // Allows providing custom shape classes (e.g., { "myShape": MyCustomShape })
   debug?: boolean | TShadesEngineDebugOptions;
   fadeDuration?: number; // Fade duration in milliseconds (default: 500ms)
+  /** Text drawn by text shapes. With an array, each item picks a random string and the intro uses the first one. Defaults to "SHADES". */
+  text?: string | string[];
+  /** Font family used by text shapes. */
+  font?: string;
+  /** Show the text intro before the first generation. Defaults to true. */
+  intro?: boolean;
+  /** Generations played in order, one per click/next(). Fields left out are randomized. */
+  presets?: TShadesPreset[];
+  /** What happens once every preset was played: start over ("loop") or switch to random generations ("random", default). */
+  presetsEnd?: "loop" | "random";
+  /** Enable, disable or override each user interaction. Every interaction is enabled by default. */
+  interactions?: TShadesEngineInteractions;
+  /** Called after each generation. */
+  onGenerate?: (config: TShadeConfig, info: TShadesGenerationInfo) => void;
 };
 
 export class ShadesEngine {
@@ -32,6 +86,8 @@ export class ShadesEngine {
   private offset: TPoint = { x: 0, y: 0 };
   private targetOffset: TPoint = { x: 0, y: 0 };
   private genCount = 0;
+  private presetCursor = 0;
+  private currentPresetIndex: number | null = null;
   private fade = {
     isFading: true,
     opacity: 0,
@@ -48,12 +104,12 @@ export class ShadesEngine {
   private framesCount = { count: 0, fps: 0 };
   private lastPinchDistance: number | null = null; // For pinch to adjust shades on touch devices
 
-  // Event handlers
-  private boundHandleClick: () => void;
-  private boundHandleMouseMove: (e: MouseEvent) => void;
-  private boundHandleTouchMove: (e: TouchEvent) => void;
-  private boundHandleWheel: (e: WheelEvent) => void;
-  private boundHandleResize: () => void;
+  // Event handlers attached by attachEventListeners, kept for removal
+  private listeners: {
+    target: EventTarget;
+    type: string;
+    handler: EventListener;
+  }[] = [];
 
   // Debug
   private debug: boolean | TShadesEngineDebugOptions = false;
@@ -75,13 +131,6 @@ export class ShadesEngine {
     this.fade.startTime = performance.now();
     this.fade.startOpacity = 0;
 
-    // Bind event handlers
-    this.boundHandleClick = this.handleClick.bind(this);
-    this.boundHandleMouseMove = this.handleMouseMove.bind(this);
-    this.boundHandleTouchMove = this.handleTouchMove.bind(this); // For touch devices, we can use the same handler as mouse move
-    this.boundHandleWheel = this.handleWheel.bind(this);
-    this.boundHandleResize = this.handleResize.bind(this);
-
     this.setupCanvas();
     this.initializeDebug();
   }
@@ -96,28 +145,19 @@ export class ShadesEngine {
 
     // Wait for fonts to be ready (comme dans le code original)
     if (document.fonts) {
-      document.fonts.ready.then(() => {
-        this.config = {
-          ...this.config,
-          nbrItemsX: 1,
-          nbrItemsY: 1,
-          nbrShades: 10,
-          gradRatio: 100 / 10,
-          width: document.body.clientWidth / 6,
-          height: document.body.clientWidth / 6,
-        };
-
-        this.genItems(
-          TextShape,
-          HOME_COLORS[random(0, HOME_COLORS.length - 1, true)]
-        );
-      });
+      document.fonts.ready.then(() => this.initDefaultGeneration());
     } else {
       this.initDefaultGeneration();
     }
   }
 
   private initDefaultGeneration(): void {
+    if (this.options.intro === false) {
+      this.applyNextConfig();
+      this.genItems();
+      return;
+    }
+
     this.config = {
       ...this.config,
       nbrItemsX: 1,
@@ -130,8 +170,61 @@ export class ShadesEngine {
 
     this.genItems(
       TextShape,
-      HOME_COLORS[random(0, HOME_COLORS.length - 1, true)]
+      HOME_COLORS[random(0, HOME_COLORS.length - 1, true)],
+      true
     );
+  }
+
+  /**
+   * Picks the config of the next generation: the next preset if any is
+   * left (or looping), otherwise a random one.
+   */
+  private applyNextConfig(): void {
+    const presets = this.options.presets ?? [];
+
+    if (
+      this.presetCursor >= presets.length &&
+      this.options.presetsEnd === "loop"
+    ) {
+      this.presetCursor = 0;
+    }
+
+    const preset: TShadesPreset | undefined = presets[this.presetCursor];
+
+    if (!preset) {
+      this.currentPresetIndex = null;
+      this.config = genConfig(this.options);
+      return;
+    }
+
+    this.currentPresetIndex = this.presetCursor;
+    this.presetCursor++;
+
+    const config: TShadeConfig = {
+      ...genConfig(this.options, preset.type),
+      ...preset,
+    };
+
+    if (preset.nbrShades !== undefined && preset.gradRatio === undefined) {
+      config.gradRatio = 100 / preset.nbrShades;
+    }
+    if (preset.width !== undefined && preset.height === undefined) {
+      config.height = preset.width;
+    }
+
+    this.config = config;
+  }
+
+  private getTexts(): string[] {
+    const { text } = this.options;
+    if (text === undefined) return [];
+    return Array.isArray(text) ? text : [text];
+  }
+
+  private pickText(intro: boolean): string | undefined {
+    const texts = this.getTexts();
+    if (!texts.length) return undefined;
+    return intro ? texts[0] : texts[random(0, texts.length - 1, true)];
   }
 
   private getConfig(): TShadeConfig {
@@ -144,7 +237,8 @@ export class ShadesEngine {
 
   private genItems(
     constructor?: TShadeTypeConstructor,
-    forceColor?: TShadeColor | TShadeColor[]
+    forceColor?: TShadeColor | TShadeColor[],
+    intro = false
   ): void {
     const config = this.getConfig();
     const {
@@ -161,15 +255,11 @@ export class ShadesEngine {
     } = config;
 
     const items: ShadeItem[] = [];
-    // For genCount > 1), ignore configColors and generate new colors
-    const colors =
-      this.genCount > 1
-        ? getRandColors(type)
-        : configColors?.length
-          ? configColors
-          : Array.isArray(forceColor)
-            ? forceColor
-            : getRandColors(type);
+    const colors = configColors?.length
+      ? configColors
+      : Array.isArray(forceColor)
+        ? forceColor
+        : getRandColors(type);
 
     const color =
       forceColor && !Array.isArray(forceColor) ? forceColor : undefined;
@@ -186,18 +276,22 @@ export class ShadesEngine {
       for (let y = 0; y < nbrItemsY; y++) {
         const index = random(0, colors.length - 1, true);
         const itemColor = colors[index];
+        // Text options are ignored by non-text shapes
+        const shapeOptions: TShapeOptions & { text?: string; font?: string } = {
+          filled: fillFilter?.(mainColor, color ?? itemColor),
+          rotation: rotationFilter?.(mainColor, color ?? itemColor),
+          lineCap: config.lineCap,
+          text: this.pickText(intro),
+          font: this.options.font,
+          ...(constructor === ImageShape ? { imageSource: undefined } : {}),
+        };
 
         items.push(
           new ShadeConstructor(
             x * width + x * spacing,
             y * height + y * spacing,
             color ?? itemColor,
-            {
-              filled: fillFilter?.(mainColor, color ?? itemColor),
-              rotation: rotationFilter?.(mainColor, color ?? itemColor),
-              lineCap: config.lineCap,
-              ...(constructor === ImageShape ? { imageSource: undefined } : {}),
-            }
+            shapeOptions
           )
         );
       }
@@ -215,6 +309,13 @@ export class ShadesEngine {
     };
 
     this.items = items;
+
+    this.options.onGenerate?.(this.getShadesConfig(), {
+      generation: this.genCount,
+      intro,
+      presetIndex: intro ? null : this.currentPresetIndex,
+    });
+
     this.genCount++;
   }
 
@@ -381,7 +482,7 @@ export class ShadesEngine {
           startTime: performance.now(),
           onDone: () => {},
         };
-        this.config = genConfig(this.options);
+        this.applyNextConfig();
         this.genItems();
       },
     };
@@ -400,19 +501,56 @@ export class ShadesEngine {
   }
 
   private attachEventListeners(): void {
-    this.canvas.addEventListener("click", this.boundHandleClick);
-    this.canvas.addEventListener("wheel", this.boundHandleWheel);
-    document.addEventListener("mousemove", this.boundHandleMouseMove);
-    document.addEventListener("touchmove", this.boundHandleTouchMove);
-    window.addEventListener("resize", this.boundHandleResize);
+    if (this.listeners.length) return;
+
+    this.bindInteraction(this.canvas, "click", "click", () =>
+      this.handleClick()
+    );
+    this.bindInteraction(this.canvas, "wheel", "wheel", (e) =>
+      this.handleWheel(e)
+    );
+    this.bindInteraction(document, "mousemove", "mouseMove", (e) =>
+      this.handleMouseMove(e)
+    );
+    this.bindInteraction(document, "touchmove", "touchMove", (e) =>
+      this.handleTouchMove(e)
+    );
+    this.bindInteraction(window, "resize", "resize", () => this.handleResize());
+  }
+
+  /**
+   * Attaches the default handler of an interaction, a user override, or
+   * nothing, depending on `options.interactions[key]`.
+   */
+  private bindInteraction<K extends keyof TShadesInteractionEvents>(
+    target: EventTarget,
+    type: string,
+    key: K,
+    defaultHandler: (event: TShadesInteractionEvents[K]) => void
+  ): void {
+    const interaction = this.options.interactions?.[key] ?? true;
+    if (interaction === false) return;
+
+    const handler =
+      typeof interaction === "function"
+        ? (event: Event) =>
+            interaction(
+              event as TShadesInteractionEvents[K],
+              this,
+              defaultHandler
+            )
+        : (event: Event) =>
+            defaultHandler(event as TShadesInteractionEvents[K]);
+
+    target.addEventListener(type, handler);
+    this.listeners.push({ target, type, handler });
   }
 
   private detachEventListeners(): void {
-    this.canvas.removeEventListener("click", this.boundHandleClick);
-    this.canvas.removeEventListener("wheel", this.boundHandleWheel);
-    document.removeEventListener("mousemove", this.boundHandleMouseMove);
-    document.removeEventListener("touchmove", this.boundHandleTouchMove);
-    window.removeEventListener("resize", this.boundHandleResize);
+    this.listeners.forEach(({ target, type, handler }) =>
+      target.removeEventListener(type, handler)
+    );
+    this.listeners = [];
   }
 
   // Public API methods for external interaction
@@ -446,12 +584,19 @@ export class ShadesEngine {
     // Reset state
     this.items = [];
     this.genCount = 0;
+    this.presetCursor = 0;
+    this.currentPresetIndex = null;
     this.offset = { x: 0, y: 0 };
     this.targetOffset = { x: 0, y: 0 };
   }
 
-  public regenerate(): void {
+  /** Fades out and plays the next generation (next preset or random). */
+  public next(): void {
     this.handleClick();
+  }
+
+  public regenerate(): void {
+    this.next();
   }
 
   public getShadesConfig(): TShadeConfig {

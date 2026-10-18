@@ -29,3 +29,11 @@ export type TShadeConfig = {
   rotationFilter: TShadeFilter;
   fillFilter: TShadeFilter;
 };
+
+/**
+ * A predefined generation: any field left out is randomized.
+ * `center`, `totalWidth` and `totalHeight` are always computed by the engine.
+ */
+export type TShadesPreset = Partial<
+  Omit<TShadeConfig, "center" | "totalWidth" | "totalHeight">
+>;

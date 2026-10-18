@@ -111,6 +111,13 @@ interface TShadesEngineOptions {
   customShapes?: Record<string, TShadeTypeConstructor>; // Custom shape classes (ex: { "star": StarShape })
   debug?: boolean | TShadesEngineDebugOptions; // Show debug information or options
   fadeDuration?: number; // Fade duration in milliseconds (default: 500ms)
+  text?: string | string[]; // Text of text shapes (default: "SHADES")
+  font?: string; // Font family of text shapes
+  intro?: boolean; // Show the text intro first (default: true)
+  presets?: TShadesPreset[]; // Generations played in order
+  presetsEnd?: "loop" | "random"; // After the last preset (default: "random")
+  interactions?: TShadesEngineInteractions; // Enable, disable or override interactions
+  onGenerate?: (config: TShadeConfig, info: TShadesGenerationInfo) => void;
 }
 ```
 
@@ -121,7 +128,8 @@ interface TShadesEngineOptions {
 | `generate()`                    | Generate shapes and setup          |
 | `start()`                       | Start animation                    |
 | `pause()`                       | Pause animation                    |
-| `regenerate()`                  | Generate new shapes                |
+| `next()`                        | Play the next generation           |
+| `regenerate()`                  | Alias of `next()`                  |
 | `destroy()`                     | Cleanup and remove event listeners |
 | `setShadesCount(scale: number)` | Adjust number of shades            |
 | `setDebug(enabled: boolean)`    | Toggle debug mode                  |
@@ -133,6 +141,61 @@ interface TShadesEngineOptions {
 - **Click** - Regenerate shapes
 - **Mouse move** - Parallax effect
 - **Mouse wheel** - Adjust number of shades
+
+Each control can be disabled or overridden, see [Interactions](#interactions).
+
+## Text
+
+`text` replaces the text drawn by text shapes. With an array, the intro uses
+the first string and every item of a text generation picks one at random.
+
+```typescript
+new ShadesEngine(canvas, {
+  text: ["AMPHORE", "SHADES", "HELLO"],
+  font: "Remained",
+});
+```
+
+## Presets
+
+`presets` plays predefined generations in order, one per click or `next()`
+call, after the intro. Each preset is a partial config: any field left out
+is randomized (`gradRatio` follows `nbrShades`, `height` follows `width`).
+Once every preset was played, `presetsEnd` either starts over (`"loop"`) or
+switches to random generations (`"random"`, default).
+
+```typescript
+new ShadesEngine(canvas, {
+  intro: true,
+  presets: [
+    { type: "logo", nbrShades: 30, thickness: 1 },
+    { type: "square", nbrShades: 10, nbrItemsX: 6, nbrItemsY: 14, width: 100, spacing: 30 },
+    { type: "text", colors: [{ r: 0, g: 0, b: 0 }, { r: 255, g: 200, b: 87 }] },
+  ],
+  presetsEnd: "loop",
+  onGenerate: (config, { generation, intro, presetIndex }) => {
+    console.log(generation, intro, presetIndex, config.type);
+  },
+});
+```
+
+## Interactions
+
+Every interaction (`click`, `wheel`, `mouseMove`, `touchMove`, `resize`) is
+enabled by default. Pass `false` to disable one, or a function to override
+it. The function receives the event, the engine and the default handler,
+so it can keep, wrap or replace the built-in behavior.
+
+```typescript
+new ShadesEngine(canvas, {
+  interactions: {
+    wheel: false, // let the page scroll over the canvas
+    click: (event, engine, defaultHandler) => {
+      if (event.shiftKey) defaultHandler(event);
+    },
+  },
+});
+```
 
 ## Custom Shapes
 

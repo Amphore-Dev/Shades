@@ -13,7 +13,10 @@ import { rgbToHex } from "./UColors.js";
 import { random } from "./UMaths.js";
 import { TShadesEngineOptions } from "../classes/ShadesEngine.js";
 
-export const genConfig = (options?: TShadesEngineOptions) => {
+export const genConfig = (
+  options?: TShadesEngineOptions,
+  forcedType?: TShadeType
+) => {
   let usedTypes = [
     ...(options?.shapes && options.shapes.length > 0
       ? options.shapes
@@ -28,7 +31,8 @@ export const genConfig = (options?: TShadesEngineOptions) => {
     usedTypes = Array.from(new Set(usedTypes));
   }
 
-  const type: TShadeType = usedTypes[random(0, usedTypes.length - 1, true)];
+  const type: TShadeType =
+    forcedType ?? usedTypes[random(0, usedTypes.length - 1, true)];
 
   const nbrShades =
     type !== "logo" ? random(3, MAX_SHADES_NBR, true) : MAX_SHADES_NBR;
